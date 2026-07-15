@@ -177,7 +177,8 @@ export default async function AccountPage({
           )}
         </div>
         <p className="mt-3 text-xs text-muted">
-          Test mode — no real charge. Payments connect later via Chapa/Telebirr.
+          Upgrading redirects you to Chapa to pay securely. Card details are
+          handled by Chapa, never stored here.
         </p>
       </section>
 

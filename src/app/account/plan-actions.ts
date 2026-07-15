@@ -91,7 +91,9 @@ export async function upgradeToPro() {
 // gateway isn't configured. On success, the return/webhook handler activates Pro.
 export async function checkoutPro() {
   const { supabase, user } = await requireUser();
-  if (!process.env.CHAPA_SECRET_KEY) return upgradeToPro();
+  // Real payment path only — no test-mode shortcut. If the gateway isn't
+  // configured we error rather than silently granting Pro.
+  if (!process.env.CHAPA_SECRET_KEY) redirect("/account?payment=error");
 
   const txRef = `qellal-${user.id.slice(0, 8)}-${globalThis.crypto.randomUUID().slice(0, 8)}`;
   const amount = PLANS.pro.priceEtbMonthly;

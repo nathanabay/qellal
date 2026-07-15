@@ -81,9 +81,10 @@ export default async function AdminDunningPage() {
           </form>
         </div>
         <p className="mt-2 text-xs text-muted">
-          Test mode: renewal charges fail, so this drives active-but-expired subs
-          to past due, retries, then downgrade. In production it runs on a daily
-          cron with real Chapa charges.
+          Renewals are charged via Chapa; a failed charge drives the sub to past
+          due → retries → downgrade. Recurring auto-charge needs a saved payment
+          method (Chapa tokenization) + a daily cron — not yet wired, so renewals
+          currently fail into dunning.
         </p>
       </section>
 
