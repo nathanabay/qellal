@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/SiteHeader";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,6 +18,12 @@ export const metadata: Metadata = {
   title: "Qellal — Ethiopian Tender Alerts",
   description:
     "One place for every Ethiopian tender notice, with email and Telegram alerts so you never miss a deadline.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Qellal", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1d4ed8",
 };
 
 export default function RootLayout({
@@ -40,6 +47,7 @@ export default function RootLayout({
         <div id="main-content" className="flex flex-1 flex-col">
           {children}
         </div>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

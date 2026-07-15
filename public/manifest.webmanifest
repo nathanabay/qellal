@@ -1,0 +1,18 @@
+{
+  "name": "Qellal — Ethiopian Tenders",
+  "short_name": "Qellal",
+  "description": "Every Ethiopian tender notice, with email & Telegram deadline alerts.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1d4ed8",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}
