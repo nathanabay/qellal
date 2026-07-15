@@ -17,6 +17,45 @@ export type NotificationKind =
 export type Database = {
   public: {
     Tables: {
+      payments: {
+        Relationships: [];
+        Row: {
+          id: string;
+          user_id: string;
+          tx_ref: string;
+          provider: string;
+          plan_id: string;
+          amount: number;
+          currency: string;
+          status: string;
+          created_at: string | null;
+          paid_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          tx_ref: string;
+          provider?: string;
+          plan_id?: string;
+          amount: number;
+          currency?: string;
+          status?: string;
+          created_at?: string | null;
+          paid_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          tx_ref?: string;
+          provider?: string;
+          plan_id?: string;
+          amount?: number;
+          currency?: string;
+          status?: string;
+          created_at?: string | null;
+          paid_at?: string | null;
+        };
+      };
       invoices: {
         Relationships: [];
         Row: {

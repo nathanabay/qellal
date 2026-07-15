@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { BillingStatus } from "@/lib/billing";
 import { generateInvoice, prorate } from "@/lib/invoicing";
 import { PLANS } from "@/lib/plans";
+import { initializeTransaction } from "@/lib/chapa";
 
 // Test-mode subscription lifecycle state machine. No payments — in production
 // upgrade/activate would run AFTER a successful gateway charge (via webhook).
@@ -84,6 +85,43 @@ export async function upgradeToPro() {
     ],
   });
   revalidatePath("/account");
+}
+
+// Real (sandbox) checkout via Chapa. Falls back to test-mode activation if the
+// gateway isn't configured. On success, the return/webhook handler activates Pro.
+export async function checkoutPro() {
+  const { supabase, user } = await requireUser();
+  if (!process.env.CHAPA_SECRET_KEY) return upgradeToPro();
+
+  const txRef = `qellal-${user.id.slice(0, 8)}-${globalThis.crypto.randomUUID().slice(0, 8)}`;
+  const amount = PLANS.pro.priceEtbMonthly;
+  await supabase.from("payments").insert({
+    user_id: user.id,
+    tx_ref: txRef,
+    provider: "chapa",
+    plan_id: "pro",
+    amount,
+    currency: "ETB",
+    status: "pending",
+  });
+
+  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const init = await initializeTransaction({
+    amount: String(amount),
+    currency: "ETB",
+    email: user.email ?? "user@qellal.et",
+    first_name: "Qellal",
+    last_name: "Member",
+    tx_ref: txRef,
+    callback_url: `${appUrl}/api/chapa/webhook`,
+    return_url: `${appUrl}/api/chapa/return?tx_ref=${txRef}`,
+    customization: {
+      title: "Qellal Pro",
+      description: "Monthly Pro subscription",
+    },
+  });
+  if (!init) redirect("/account?payment=error");
+  redirect(init.checkout_url);
 }
 
 export async function pausePlan() {

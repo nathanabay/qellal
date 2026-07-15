@@ -18,7 +18,7 @@ import {
 } from "./actions";
 import {
   startTrial,
-  upgradeToPro,
+  checkoutPro,
   pausePlan,
   resumePlan,
   cancelPlan,
@@ -30,7 +30,15 @@ export const metadata = { title: "Your alerts — Qellal" };
 const inputClass =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted";
 
-export default async function AccountPage() {
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const sp = await searchParams;
+  const upgraded = sp.upgraded === "1";
+  const paymentFailed = sp.payment === "failed" || sp.payment === "error";
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -76,6 +84,24 @@ export default async function AccountPage() {
         </p>
       </header>
 
+      {upgraded && (
+        <div
+          role="status"
+          className="mb-6 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary-soft p-4 text-sm text-primary"
+        >
+          <CheckIcon className="h-4 w-4" />
+          Payment received — you&apos;re on Pro. Thanks!
+        </div>
+      )}
+      {paymentFailed && (
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-urgent/40 bg-urgent-soft p-4 text-sm text-urgent"
+        >
+          Payment wasn&apos;t completed. You can try again below.
+        </div>
+      )}
+
       {/* Plan & subscription lifecycle (Slice 2 — test mode, no real charge) */}
       <section className="mb-6 rounded-xl border border-border bg-surface p-4">
         <div className="flex items-center justify-between gap-2">
@@ -95,7 +121,7 @@ export default async function AccountPage() {
                   Start 14-day Pro trial
                 </SubmitButton>
               </form>
-              <form action={upgradeToPro}>
+              <form action={checkoutPro}>
                 <SubmitButton className="px-3" pendingText="Upgrading…">
                   Upgrade to Pro
                 </SubmitButton>
@@ -104,7 +130,7 @@ export default async function AccountPage() {
           )}
           {status === "trialing" && (
             <>
-              <form action={upgradeToPro}>
+              <form action={checkoutPro}>
                 <SubmitButton className="px-3" pendingText="Activating…">
                   Activate Pro now
                 </SubmitButton>
