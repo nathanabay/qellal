@@ -1,0 +1,35 @@
+name: Notifications
+
+# Daily deadline reminders (T-7/3/1) + new-tender digest.
+# Uses Python stdlib only — no pip install needed.
+on:
+  schedule:
+    - cron: "0 5 * * *" # 05:00 UTC = 08:00 EAT, once daily
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (print, do not send)"
+        default: "1"
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run notification matcher
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APP_URL: ${{ secrets.APP_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          # Scheduled runs send for real; manual runs default to dry-run.
+          DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
+        run: python scripts/notify.py

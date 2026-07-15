@@ -6,6 +6,7 @@ import {
   updateNotificationPrefs,
   addSubscription,
   removeSubscription,
+  setNotificationPause,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -83,6 +84,47 @@ export default async function AccountPage() {
             Save preferences
           </button>
         </form>
+
+        {/* Pause controls (F7) */}
+        {(() => {
+          const pausedUntil = profile?.notifications_paused_until
+            ? new Date(profile.notifications_paused_until)
+            : null;
+          const isPaused = pausedUntil ? pausedUntil > new Date() : false;
+          return (
+            <div className="mt-4 border-t border-border pt-3">
+              {isPaused ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-warn">
+                    Alerts paused until {pausedUntil!.toLocaleDateString("en-GB")}.
+                  </p>
+                  <form action={setNotificationPause}>
+                    <input type="hidden" name="days" value="0" />
+                    <button type="submit" className="text-sm font-medium text-primary hover:text-primary-hover">
+                      Resume now
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
+                  <span>Getting too many? Pause alerts:</span>
+                  <form action={setNotificationPause}>
+                    <input type="hidden" name="days" value="1" />
+                    <button type="submit" className="rounded-lg border border-border px-2.5 py-1 font-medium text-ink hover:bg-primary-soft">
+                      24 hours
+                    </button>
+                  </form>
+                  <form action={setNotificationPause}>
+                    <input type="hidden" name="days" value="7" />
+                    <button type="submit" className="rounded-lg border border-border px-2.5 py-1 font-medium text-ink hover:bg-primary-soft">
+                      7 days
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </section>
 
       {/* Subscriptions */}

@@ -45,6 +45,21 @@ export async function addSubscription(formData: FormData) {
   revalidatePath("/account");
 }
 
+export async function setNotificationPause(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  const days = String(formData.get("days") ?? "");
+  let until: string | null = null;
+  if (days === "1") until = new Date(Date.now() + 86_400_000).toISOString();
+  else if (days === "7") until = new Date(Date.now() + 7 * 86_400_000).toISOString();
+  // days === "0" → resume (clear the pause)
+  const { error } = await supabase
+    .from("profiles")
+    .update({ notifications_paused_until: until })
+    .eq("id", user.id);
+  if (error) console.error("pause update failed:", error.message);
+  revalidatePath("/account");
+}
+
 export async function removeSubscription(formData: FormData) {
   const { supabase } = await requireUser();
   const id = String(formData.get("id") ?? "");

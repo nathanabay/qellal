@@ -8,6 +8,11 @@
 export type TenderStatus = "pending_review" | "published" | "rejected";
 export type UserRole = "user" | "staff" | "admin";
 export type NotificationChannel = "email" | "telegram";
+export type NotificationKind =
+  | "digest"
+  | "reminder_7"
+  | "reminder_3"
+  | "reminder_1";
 
 export type Database = {
   public: {
@@ -34,6 +39,7 @@ export type Database = {
           status: TenderStatus;
           created_by: string;
           created_at: string | null;
+          published_at: string | null;
         };
         Insert: {
           id?: string;
@@ -49,6 +55,7 @@ export type Database = {
           status?: TenderStatus;
           created_by?: string;
           created_at?: string | null;
+          published_at?: string | null;
         };
         Update: {
           id?: string;
@@ -64,12 +71,14 @@ export type Database = {
           status?: TenderStatus;
           created_by?: string;
           created_at?: string | null;
+          published_at?: string | null;
         };
       };
       profiles: {
         Relationships: [];
         Row: {
           id: string;
+          email: string | null;
           full_name: string | null;
           company_name: string | null;
           role: UserRole;
@@ -78,10 +87,13 @@ export type Database = {
           email_notifications: boolean | null;
           telegram_notifications: boolean | null;
           digest_mode: boolean | null;
+          telegram_link_token: string;
+          notifications_paused_until: string | null;
           created_at: string | null;
         };
         Insert: {
           id: string;
+          email?: string | null;
           full_name?: string | null;
           company_name?: string | null;
           role?: UserRole;
@@ -90,10 +102,13 @@ export type Database = {
           email_notifications?: boolean | null;
           telegram_notifications?: boolean | null;
           digest_mode?: boolean | null;
+          telegram_link_token?: string;
+          notifications_paused_until?: string | null;
           created_at?: string | null;
         };
         Update: {
           id?: string;
+          email?: string | null;
           full_name?: string | null;
           company_name?: string | null;
           role?: UserRole;
@@ -102,6 +117,8 @@ export type Database = {
           email_notifications?: boolean | null;
           telegram_notifications?: boolean | null;
           digest_mode?: boolean | null;
+          telegram_link_token?: string;
+          notifications_paused_until?: string | null;
           created_at?: string | null;
         };
       };
@@ -139,6 +156,7 @@ export type Database = {
           user_id: string;
           tender_id: string;
           channel: NotificationChannel;
+          kind: NotificationKind;
           sent_at: string | null;
         };
         Insert: {
@@ -146,6 +164,7 @@ export type Database = {
           user_id: string;
           tender_id: string;
           channel: NotificationChannel;
+          kind?: NotificationKind;
           sent_at?: string | null;
         };
         Update: {
