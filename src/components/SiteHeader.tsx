@@ -29,7 +29,7 @@ export async function SiteHeader() {
           href="/"
           className="flex items-center gap-2 font-bold tracking-tight text-ink"
         >
-          <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-primary" />
           Qellal
         </Link>
 

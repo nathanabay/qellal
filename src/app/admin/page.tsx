@@ -106,12 +106,14 @@ export default async function AdminPage() {
             name="title"
             required
             placeholder="Tender title *"
+            aria-label="Tender title"
             className={inputClass}
           />
           <textarea
             name="description"
             rows={3}
             placeholder="Description"
+            aria-label="Description"
             className={inputClass}
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -127,6 +129,7 @@ export default async function AdminPage() {
               name="region"
               list="admin-regions"
               placeholder="Region"
+              aria-label="Region"
               className={inputClass}
             />
             <datalist id="admin-regions">
@@ -137,6 +140,7 @@ export default async function AdminPage() {
             <input
               name="publishing_entity"
               placeholder="Publishing entity"
+              aria-label="Publishing entity"
               className={inputClass}
             />
             <input
@@ -150,12 +154,14 @@ export default async function AdminPage() {
               name="source_name"
               required
               placeholder="Source name *"
+              aria-label="Source name"
               className={inputClass}
             />
             <input
               name="source_url"
               type="url"
               placeholder="Source URL"
+              aria-label="Source URL"
               className={inputClass}
             />
           </div>

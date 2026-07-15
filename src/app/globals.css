@@ -18,6 +18,7 @@
 
   --red-100: #fee2e2;
   --red-600: #dc2626;
+  --red-700: #b91c1c;
 
   --slate-50: #f8fafc;
   --slate-200: #e2e8f0;
@@ -34,7 +35,7 @@
   --color-primary-hover: var(--blue-800);
   --color-primary-soft: var(--blue-50);
 
-  --color-urgent: var(--red-600);       /* deadline ≤ 3 days */
+  --color-urgent: var(--red-700);       /* deadline ≤ 3 days — red-700 for WCAG AA on soft bg */
   --color-urgent-soft: var(--red-100);
   --color-warn: var(--amber-700);       /* deadline ≤ 7 days */
   --color-warn-soft: var(--amber-100);

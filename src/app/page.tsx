@@ -15,7 +15,7 @@ export default async function Home() {
       {/* Hero */}
       <section className="text-center">
         <span className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-primary" />
           Ethiopian tender alerts
         </span>
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-ink sm:text-5xl">

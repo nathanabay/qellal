@@ -18,6 +18,12 @@
 - [ ] Unsubscribe/pause path works in one click (email link + bot /stop)
 - [ ] Digest mode respected; instant mode only when user chose it
 
+## Accessibility (target: WCAG 2.1 AA)
+- [ ] Text contrast ≥ 4.5:1 (normal) / 3:1 (large & UI) — run the token contrast check
+- [ ] Every image has alt text; decorative elements are `aria-hidden`
+- [ ] Every input/select/button has an accessible name (label or `aria-label`)
+- [ ] Keyboard-navigable: visible focus, skip-to-content link works
+
 ## Performance (Ethiopia reality)
 - [ ] Page usable in <3s on Chrome DevTools "Slow 3G" throttling
 - [ ] No heavy new dependencies; images compressed
