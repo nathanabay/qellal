@@ -8,10 +8,20 @@ export type TendersResult =
   | { state: "error"; message: string }
   | { state: "ok"; tenders: TenderCardData[] };
 
+export type Category = { id: number; name: string; slug: string };
+
+export type TenderFilters = {
+  q?: string; // keyword in title
+  categoryId?: number;
+  region?: string;
+  deadlineInDays?: number; // deadline within N days from today
+};
+
 type GetOptions = {
   limit?: number;
   // "recent" = newest first (PRD default); "deadline" = soonest closing first.
   sort?: "recent" | "deadline";
+  filters?: TenderFilters;
 };
 
 const COLUMNS = "id,title,region,deadline,source_name,publishing_entity";
@@ -28,6 +38,17 @@ export async function getPublishedTenders(
     .from("tenders")
     .select(COLUMNS)
     .eq("status", "published");
+
+  const f = opts.filters ?? {};
+  if (f.q) query = query.ilike("title", `%${f.q}%`);
+  if (f.categoryId) query = query.eq("category_id", f.categoryId);
+  if (f.region) query = query.eq("region", f.region);
+  if (f.deadlineInDays) {
+    const cutoff = new Date(Date.now() + f.deadlineInDays * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    query = query.lte("deadline", cutoff);
+  }
 
   query =
     opts.sort === "deadline"
@@ -59,4 +80,43 @@ export async function getPublishedTenderCount(): Promise<number | null> {
     return null;
   }
   return count ?? 0;
+}
+
+export async function getCategories(): Promise<Category[]> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id,name,slug")
+    .order("name");
+
+  if (error) {
+    console.error("categories fetch failed:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+// Region is free-text on tenders — derive the filter options from the data
+// that actually exists, so the dropdown is always accurate.
+export async function getDistinctRegions(): Promise<string[]> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tenders")
+    .select("region")
+    .eq("status", "published");
+
+  if (error) {
+    console.error("regions fetch failed:", error.message);
+    return [];
+  }
+  const rows = (data ?? []) as { region: string | null }[];
+  const set = new Set<string>();
+  for (const row of rows) {
+    if (row.region) set.add(row.region);
+  }
+  return [...set].sort();
 }
