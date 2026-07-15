@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { InboxIcon, UsersIcon, BellIcon } from "@/components/ui/icons";
+import { InboxIcon, UsersIcon, BellIcon, TagIcon } from "@/components/ui/icons";
 
 // Admin sidebar with exact-match active state.
 export function AdminNav({ role }: { role: string }) {
@@ -16,6 +16,12 @@ export function AdminNav({ role }: { role: string }) {
       label: "Subscriptions",
       Icon: BellIcon,
       show: true,
+    },
+    {
+      href: "/admin/plans",
+      label: "Plans & roles",
+      Icon: TagIcon,
+      show: role === "admin",
     },
   ].filter((i) => i.show);
 
