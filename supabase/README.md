@@ -37,6 +37,25 @@ the Supabase SQL editor (no Supabase CLI = one less dependency during MVP).
   (`update profiles set role='staff' where id='<uuid>';`) and confirm they can see
   `pending_review` tenders.
 
+## Auth email configuration (required for confirm + reset links to work)
+
+The app uses the server-side `token_hash` flow, so the emails must point at our
+`/auth/confirm` route. In the Supabase Dashboard:
+
+**Authentication → URL Configuration**
+- **Site URL:** `http://localhost:3000` (swap for the real domain at launch)
+- **Redirect URLs:** add `http://localhost:3000/**`
+
+**Authentication → Email Templates** — replace the link in each:
+- *Confirm signup:*
+  `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup&next=/tenders`
+- *Reset password:*
+  `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/update-password`
+
+**Authentication → Providers → Email:** keep **Confirm email** ON (we require it).
+Note: the free built-in email sender is rate-limited (~a few/hour) — fine for
+testing, but wire a real SMTP/Resend sender before launch.
+
 ## Changing the schema later
 
 Add a new numbered file (`0004_*.sql`) — never edit an already-applied migration.
