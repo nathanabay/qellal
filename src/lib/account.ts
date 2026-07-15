@@ -12,6 +12,8 @@ export type Profile = {
   telegram_notifications: boolean;
   digest_mode: boolean;
   notifications_paused_until: string | null;
+  telegram_chat_id: string | null;
+  telegram_link_token: string;
 };
 
 export type Subscription = {
@@ -31,7 +33,7 @@ export async function getProfile(): Promise<Profile | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id,full_name,company_name,email_notifications,telegram_notifications,digest_mode,notifications_paused_until",
+      "id,full_name,company_name,email_notifications,telegram_notifications,digest_mode,notifications_paused_until,telegram_chat_id,telegram_link_token",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -50,6 +52,8 @@ export async function getProfile(): Promise<Profile | null> {
     telegram_notifications: data.telegram_notifications ?? false,
     digest_mode: data.digest_mode ?? true,
     notifications_paused_until: data.notifications_paused_until,
+    telegram_chat_id: data.telegram_chat_id,
+    telegram_link_token: data.telegram_link_token,
   };
 }
 

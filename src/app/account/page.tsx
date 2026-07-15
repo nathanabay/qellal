@@ -127,6 +127,37 @@ export default async function AccountPage() {
         })()}
       </section>
 
+      {/* Telegram connect (F3) */}
+      <section className="mt-6 rounded-xl border border-border bg-surface p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          Telegram
+        </h2>
+        {profile?.telegram_chat_id ? (
+          <p className="mt-2 text-sm text-ink">
+            ✅ Telegram connected. Send <code className="font-mono">/stop</code> in
+            the chat to unsubscribe.
+          </p>
+        ) : process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME && profile ? (
+          <div className="mt-2">
+            <p className="text-sm text-muted">
+              Get instant deadline reminders in Telegram — one tap, no setup.
+            </p>
+            <a
+              href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME}?start=${profile.telegram_link_token}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
+            >
+              Connect Telegram
+            </a>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-muted">
+            Telegram connect is coming soon.
+          </p>
+        )}
+      </section>
+
       {/* Subscriptions */}
       <section className="mt-6 rounded-xl border border-border bg-surface p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
