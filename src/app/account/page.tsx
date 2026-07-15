@@ -6,12 +6,22 @@ import { getCategories, getDistinctRegions } from "@/lib/tenders";
 import { TenderCard } from "@/components/TenderCard";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { CheckIcon } from "@/components/ui/icons";
+import { getBillingSubscription } from "@/lib/billing";
+import { getPlan } from "@/lib/plans";
+import { formatDate } from "@/lib/format";
 import {
   updateNotificationPrefs,
   addSubscription,
   removeSubscription,
   setNotificationPause,
 } from "./actions";
+import {
+  startTrial,
+  upgradeToPro,
+  pausePlan,
+  resumePlan,
+  cancelPlan,
+} from "./plan-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Your alerts — Qellal" };
@@ -26,13 +36,28 @@ export default async function AccountPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [profile, subs, categories, regions, saved] = await Promise.all([
-    getProfile(),
-    getSubscriptions(),
-    getCategories(),
-    getDistinctRegions(),
-    getSavedTenders(),
-  ]);
+  const [profile, subs, categories, regions, saved, billing] =
+    await Promise.all([
+      getProfile(),
+      getSubscriptions(),
+      getCategories(),
+      getDistinctRegions(),
+      getSavedTenders(),
+      getBillingSubscription(),
+    ]);
+
+  const status = billing?.status ?? null;
+  const effectivePlan =
+    billing && status !== "canceled" ? billing.plan_id : "free";
+  const planName = getPlan(effectivePlan).name;
+  const statusLine =
+    status === "trialing"
+      ? `Pro trial — ends ${billing?.trial_ends_at ? formatDate(billing.trial_ends_at) : "soon"}.`
+      : status === "active"
+        ? `Pro — renews ${billing?.current_period_end ? formatDate(billing.current_period_end) : "monthly"}.`
+        : status === "paused"
+          ? "Pro — paused."
+          : "You're on the Free plan.";
 
   const categoryName = (id: number | null) =>
     id != null ? (categories.find((c) => c.id === id)?.name ?? null) : null;
@@ -48,6 +73,85 @@ export default async function AccountPage() {
           notified and which tenders to watch.
         </p>
       </header>
+
+      {/* Plan & subscription lifecycle (Slice 2 — test mode, no real charge) */}
+      <section className="mb-6 rounded-xl border border-border bg-surface p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Your plan
+          </h2>
+          <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-semibold text-primary">
+            {planName}
+          </span>
+        </div>
+        <p className="mt-2 text-sm text-ink">{statusLine}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(status === null || status === "canceled") && (
+            <>
+              <form action={startTrial}>
+                <SubmitButton variant="secondary" className="px-3" pendingText="Starting…">
+                  Start 14-day Pro trial
+                </SubmitButton>
+              </form>
+              <form action={upgradeToPro}>
+                <SubmitButton className="px-3" pendingText="Upgrading…">
+                  Upgrade to Pro
+                </SubmitButton>
+              </form>
+            </>
+          )}
+          {status === "trialing" && (
+            <>
+              <form action={upgradeToPro}>
+                <SubmitButton className="px-3" pendingText="Activating…">
+                  Activate Pro now
+                </SubmitButton>
+              </form>
+              <form action={pausePlan}>
+                <SubmitButton variant="secondary" className="px-3">
+                  Pause
+                </SubmitButton>
+              </form>
+              <form action={cancelPlan}>
+                <SubmitButton variant="danger" className="px-3">
+                  Cancel
+                </SubmitButton>
+              </form>
+            </>
+          )}
+          {status === "active" && (
+            <>
+              <form action={pausePlan}>
+                <SubmitButton variant="secondary" className="px-3">
+                  Pause
+                </SubmitButton>
+              </form>
+              <form action={cancelPlan}>
+                <SubmitButton variant="danger" className="px-3">
+                  Cancel Pro → Free
+                </SubmitButton>
+              </form>
+            </>
+          )}
+          {status === "paused" && (
+            <>
+              <form action={resumePlan}>
+                <SubmitButton className="px-3" pendingText="Resuming…">
+                  Resume
+                </SubmitButton>
+              </form>
+              <form action={cancelPlan}>
+                <SubmitButton variant="danger" className="px-3">
+                  Cancel
+                </SubmitButton>
+              </form>
+            </>
+          )}
+        </div>
+        <p className="mt-3 text-xs text-muted">
+          Test mode — no real charge. Payments connect later via Chapa/Telebirr.
+        </p>
+      </section>
 
       {/* Notification channels */}
       <section className="rounded-xl border border-border bg-surface p-4">

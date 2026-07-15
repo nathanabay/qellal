@@ -17,6 +17,45 @@ export type NotificationKind =
 export type Database = {
   public: {
     Tables: {
+      billing_subscriptions: {
+        Relationships: [];
+        Row: {
+          user_id: string;
+          plan_id: string;
+          status: string;
+          trial_ends_at: string | null;
+          current_period_start: string | null;
+          current_period_end: string | null;
+          cancel_at_period_end: boolean;
+          canceled_at: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          user_id: string;
+          plan_id?: string;
+          status?: string;
+          trial_ends_at?: string | null;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          cancel_at_period_end?: boolean;
+          canceled_at?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          user_id?: string;
+          plan_id?: string;
+          status?: string;
+          trial_ends_at?: string | null;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          cancel_at_period_end?: boolean;
+          canceled_at?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+      };
       saved_tenders: {
         Relationships: [];
         Row: { user_id: string; tender_id: string; created_at: string | null };
