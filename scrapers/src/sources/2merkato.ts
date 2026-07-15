@@ -16,6 +16,11 @@ import {
 // Legal: public listing metadata + attribution link; no paywalled docs.
 const BASE = "https://tender.2merkato.com";
 const SOURCE_NAME = "2merkato";
+// Explicit spacing between requests. maxRequestsPerMinute is a per-minute
+// budget that can still micro-burst; a hard sleep guarantees true spacing so
+// 2merkato never returns 429.
+const REQUEST_DELAY_MS = 500;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type NamePair = { name_en?: string | null; name?: string | null };
 type RawSource = { name_en?: string | null; publication_date?: string | null };
@@ -127,7 +132,8 @@ export async function scrape2merkato(
     maxRequestRetries: 5,
     requestHandlerTimeoutSecs: 60,
     preNavigationHooks: [
-      (_ctx, gotOptions) => {
+      async (_ctx, gotOptions) => {
+        await sleep(REQUEST_DELAY_MS); // hard 500ms spacing between requests
         gotOptions.headers = {
           ...gotOptions.headers,
           "User-Agent": UA,
