@@ -16,12 +16,15 @@ export function TenderBrowser({
   categories,
   regions,
   isLoggedIn,
+  savedIds = [],
 }: {
   tenders: TenderCardData[];
   categories: Category[];
   regions: string[];
   isLoggedIn: boolean;
+  savedIds?: string[];
 }) {
+  const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -130,7 +133,12 @@ export function TenderBrowser({
         <ul className="space-y-3">
           {filtered.map((t) => (
             <li key={t.id}>
-              <TenderCard tender={t} />
+              <TenderCard
+                tender={t}
+                showSave
+                isLoggedIn={isLoggedIn}
+                saved={savedSet.has(t.id)}
+              />
             </li>
           ))}
         </ul>

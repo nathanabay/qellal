@@ -36,7 +36,8 @@ Manual entry, scraped-item review queue, edit/remove, roles.
 - ✅ Role-based access (admin vs data-entry staff)
 
 ## NOT in MVP (do not build)
-Payments/subscriptions (month 6 — Chapa + Telebirr), SMS, WhatsApp, native apps, bookmarks/bid tracking, company profiles/analytics.
+Payments/subscriptions (month 6 — Chapa + Telebirr), SMS, WhatsApp, native apps, company profiles/analytics.
+- **Changed 2026-07-15:** saved tenders (bookmarks) moved INTO scope (F10); bid-tracking remains out.
 
 ## Success Metrics
 - **Primary:** 300 signups in 30 days (placeholder target); 60% of signups subscribe to ≥1 category by day 30

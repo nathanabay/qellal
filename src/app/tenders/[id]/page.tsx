@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { getTenderById, getCategories } from "@/lib/tenders";
 import { daysLeft, formatDate } from "@/lib/format";
+import { createClient } from "@/lib/supabase/server";
+import { toggleSaveTender } from "@/app/tenders/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,20 @@ export default async function TenderDetailPage({
   const { id } = await params;
   const tender = await getTender(id);
   if (!tender) notFound();
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let saved = false;
+  if (user) {
+    const { data } = await supabase
+      .from("saved_tenders")
+      .select("tender_id")
+      .eq("tender_id", tender.id)
+      .maybeSingle();
+    saved = Boolean(data);
+  }
 
   const categories = await getCategories();
   const categoryName =
@@ -78,6 +94,29 @@ export default async function TenderDetailPage({
             {formatDate(tender.deadline)}
           </span>
         </span>
+        {user ? (
+          <form action={toggleSaveTender} className="ml-auto">
+            <input type="hidden" name="tender_id" value={tender.id} />
+            <input type="hidden" name="saved" value={saved ? "1" : "0"} />
+            <button
+              type="submit"
+              className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                saved
+                  ? "border-primary bg-primary-soft text-primary"
+                  : "border-border text-muted hover:bg-primary-soft hover:text-primary"
+              }`}
+            >
+              {saved ? "★ Saved" : "☆ Save"}
+            </button>
+          </form>
+        ) : (
+          <Link
+            href="/login"
+            className="ml-auto text-sm font-medium text-primary hover:text-primary-hover"
+          >
+            Sign in to save
+          </Link>
+        )}
       </div>
 
       {meta.length > 0 && (

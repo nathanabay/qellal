@@ -3,6 +3,7 @@ import {
   getCategories,
   getDistinctRegions,
 } from "@/lib/tenders";
+import { getSavedTenderIds } from "@/lib/saved";
 import { createClient } from "@/lib/supabase/server";
 import { TenderBrowser } from "@/components/TenderBrowser";
 
@@ -24,6 +25,7 @@ export default async function TendersPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const savedIds = user ? [...(await getSavedTenderIds())] : [];
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8">
@@ -59,6 +61,7 @@ export default async function TendersPage() {
           categories={categories}
           regions={regions}
           isLoggedIn={Boolean(user)}
+          savedIds={savedIds}
         />
       )}
     </main>

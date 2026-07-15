@@ -17,6 +17,20 @@ export type NotificationKind =
 export type Database = {
   public: {
     Tables: {
+      saved_tenders: {
+        Relationships: [];
+        Row: { user_id: string; tender_id: string; created_at: string | null };
+        Insert: {
+          user_id: string;
+          tender_id: string;
+          created_at?: string | null;
+        };
+        Update: {
+          user_id?: string;
+          tender_id?: string;
+          created_at?: string | null;
+        };
+      };
       categories: {
         Relationships: [];
         Row: { id: number; name: string; slug: string };

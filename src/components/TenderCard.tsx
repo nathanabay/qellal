@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { daysLeft, formatDate } from "@/lib/format";
+import { toggleSaveTender } from "@/app/tenders/actions";
 
 export type TenderCardData = {
   id: string;
@@ -11,10 +12,18 @@ export type TenderCardData = {
   category_id: number | null;
 };
 
-export function TenderCard({ tender }: { tender: TenderCardData }) {
+export function TenderCard({
+  tender,
+  showSave = false,
+  saved = false,
+  isLoggedIn = false,
+}: {
+  tender: TenderCardData;
+  showSave?: boolean;
+  saved?: boolean;
+  isLoggedIn?: boolean;
+}) {
   const d = daysLeft(tender.deadline);
-
-  // Deadline is the user's #1 anxiety — colour it by urgency.
   const badgeClass =
     d <= 3
       ? "bg-urgent-soft text-urgent"
@@ -22,11 +31,8 @@ export function TenderCard({ tender }: { tender: TenderCardData }) {
         ? "bg-warn-soft text-warn"
         : "bg-primary-soft text-primary";
 
-  return (
-    <Link
-      href={`/tenders/${tender.id}`}
-      className="block rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-    >
+  const body = (
+    <>
       <div className="flex items-start justify-between gap-3">
         <h2 className="font-semibold leading-snug text-ink">{tender.title}</h2>
         <span
@@ -35,12 +41,10 @@ export function TenderCard({ tender }: { tender: TenderCardData }) {
           {d <= 0 ? "Closed" : `${d}d left`}
         </span>
       </div>
-
       <p className="mt-2 text-sm text-muted">
         {tender.region ?? "Ethiopia"}
         {tender.publishing_entity ? ` · ${tender.publishing_entity}` : ""}
       </p>
-
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted">
         <span>
           Deadline:{" "}
@@ -50,6 +54,47 @@ export function TenderCard({ tender }: { tender: TenderCardData }) {
         </span>
         <span>Source: {tender.source_name}</span>
       </div>
-    </Link>
+    </>
+  );
+
+  // Simple clickable card (homepage, saved list).
+  if (!showSave) {
+    return (
+      <Link
+        href={`/tenders/${tender.id}`}
+        className="block rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  // Card with a save toggle: stretched link keeps the whole card clickable while
+  // the save button stays a separate, valid interactive element (z-10 above it).
+  return (
+    <div className="relative rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md">
+      <Link
+        href={`/tenders/${tender.id}`}
+        aria-label={tender.title}
+        className="absolute inset-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      />
+      {body}
+      {isLoggedIn && (
+        <form action={toggleSaveTender} className="relative z-10 mt-3">
+          <input type="hidden" name="tender_id" value={tender.id} />
+          <input type="hidden" name="saved" value={saved ? "1" : "0"} />
+          <button
+            type="submit"
+            className={`rounded-lg border px-2.5 py-1 text-xs font-medium ${
+              saved
+                ? "border-primary bg-primary-soft text-primary"
+                : "border-border text-muted hover:bg-primary-soft hover:text-primary"
+            }`}
+          >
+            {saved ? "★ Saved" : "☆ Save"}
+          </button>
+        </form>
+      )}
+    </div>
   );
 }

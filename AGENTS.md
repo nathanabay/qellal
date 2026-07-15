@@ -52,7 +52,8 @@
 
 - Do NOT delete files without explicit confirmation
 - Do NOT modify database schemas without stating a rollback plan
-- Do NOT add features outside the current phase (esp. payments, SMS, WhatsApp, native apps, bookmarks — all post-MVP)
+- Do NOT add features outside the current phase (esp. payments, SMS, WhatsApp, native apps — all post-MVP)
+  - Note (2026-07-15): **bookmarks/saved tenders promoted INTO scope** by builder decision (feature F10 from the UX research); implemented as `saved_tenders`.
 - Do NOT skip verification for "simple" changes
 - Do NOT bypass failing checks or pre-commit hooks
 - Do NOT suggest paid tiers or new dependencies without checking `package.json` and asking

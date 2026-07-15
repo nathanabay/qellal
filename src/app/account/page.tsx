@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, getSubscriptions } from "@/lib/account";
+import { getSavedTenders } from "@/lib/saved";
 import { getCategories, getDistinctRegions } from "@/lib/tenders";
+import { TenderCard } from "@/components/TenderCard";
 import {
   updateNotificationPrefs,
   addSubscription,
@@ -24,11 +26,12 @@ export default async function AccountPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [profile, subs, categories, regions] = await Promise.all([
+  const [profile, subs, categories, regions, saved] = await Promise.all([
     getProfile(),
     getSubscriptions(),
     getCategories(),
     getDistinctRegions(),
+    getSavedTenders(),
   ]);
 
   const categoryName = (id: number | null) =>
@@ -231,6 +234,25 @@ export default async function AccountPage() {
             </button>
           </div>
         </form>
+      </section>
+      {/* Saved tenders (F10) */}
+      <section className="mt-6 rounded-xl border border-border bg-surface p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          Saved tenders
+        </h2>
+        {saved.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">
+            No saved tenders yet. Tap “☆ Save” on any tender to keep it here.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-3">
+            {saved.map((t) => (
+              <li key={t.id}>
+                <TenderCard tender={t} showSave saved isLoggedIn />
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   );
