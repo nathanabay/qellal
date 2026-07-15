@@ -172,8 +172,34 @@ export const RAW_TO_SUPER: Record<string, string> = {
   "others": "general-services-misc",
 };
 
+// Manual overrides for live 2merkato category names not in the mapping plan.
+// Kept separate so regenerating RAW_TO_SUPER won't drop them. Keys are
+// lowercased and whitespace-collapsed.
+export const MANUAL_OVERRIDES: Record<string, string> = {
+  "equipment and accessories": "manufacturing-machinery",
+  equipment: "manufacturing-machinery",
+  "raw materials and supplies": "raw-materials-chemicals-metals",
+  materials: "raw-materials-chemicals-metals",
+  other: "general-services-misc",
+  services: "general-services-misc",
+  "products and services": "general-services-misc",
+  "social and public policy": "general-services-misc",
+  environmental: "general-services-misc",
+  organizational: "business-finance-services",
+  financial: "business-finance-services",
+  legal: "business-finance-services",
+  "accounting and auditing": "business-finance-services",
+  "accounting system design": "business-finance-services",
+  "accounting and auditing, accounting system design": "business-finance-services",
+  "health related": "medical-health-pharma",
+  ict: "ict-telecom",
+  "telecommunication equipment": "ict-telecom",
+  "house and building": "real-estate-facilities-maintenance",
+};
+
 // Resolve a 2merkato category name to a super-category slug (or null if unmapped).
 export function toSuperSlug(rawName: string | null | undefined): string | null {
   if (!rawName) return null;
-  return RAW_TO_SUPER[rawName.trim().toLowerCase()] ?? null;
+  const key = rawName.trim().toLowerCase().replace(/\s+/g, " ");
+  return MANUAL_OVERRIDES[key] ?? RAW_TO_SUPER[key] ?? null;
 }
