@@ -195,6 +195,12 @@ export const MANUAL_OVERRIDES: Record<string, string> = {
   ict: "ict-telecom",
   "telecommunication equipment": "ict-telecom",
   "house and building": "real-estate-facilities-maintenance",
+  vehicle: "vehicles-transport-logistics",
+  "machinery and equipment": "manufacturing-machinery",
+  "construction machinery": "construction-engineering",
+  engineering: "construction-engineering",
+  furniture: "household-furniture-furnishings",
+  agricultural: "agriculture-farming",
 };
 
 // Resolve a 2merkato category name to a super-category slug (or null if unmapped).
