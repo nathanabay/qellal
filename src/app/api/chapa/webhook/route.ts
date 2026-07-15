@@ -1,16 +1,44 @@
 import { type NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { verifyTransaction } from "@/lib/chapa";
 import { activatePro } from "@/lib/billing-activate";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Chapa POSTs here on payment completion (reliable path, e.g. if the user closed
-// the tab). We re-verify with Chapa, then activate via the service role.
-// Needs a public URL (deploy) + SUPABASE_SERVICE_ROLE_KEY to fully work.
+// Chapa POSTs here on payment completion (and failed payments, if enabled).
+// Security: we ALSO re-verify every event with Chapa's /verify API before acting,
+// so a spoofed request can never grant Pro. Needs SUPABASE_SERVICE_ROLE_KEY to
+// write (no user session in a webhook).
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as {
-    tx_ref?: string;
-    data?: { tx_ref?: string };
-  };
+  const raw = await req.text();
+
+  // Signature check (defense in depth). Chapa signs with the webhook secret —
+  // either HMAC-SHA256 of the payload (Chapa-Signature) or of the secret itself
+  // (x-chapa-signature). Logged, not fatal: /verify below is the real gate.
+  const secret = process.env.CHAPA_WEBHOOK_SECRET;
+  if (secret) {
+    const sig =
+      req.headers.get("chapa-signature") ??
+      req.headers.get("x-chapa-signature") ??
+      "";
+    const bodyHmac = crypto
+      .createHmac("sha256", secret)
+      .update(raw)
+      .digest("hex");
+    const secretHmac = crypto
+      .createHmac("sha256", secret)
+      .update(secret)
+      .digest("hex");
+    if (sig && sig !== bodyHmac && sig !== secretHmac) {
+      console.warn("chapa webhook: signature mismatch (verifying via API anyway)");
+    }
+  }
+
+  let body: { tx_ref?: string; data?: { tx_ref?: string } } = {};
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    /* empty/invalid body */
+  }
   const txRef = body.tx_ref ?? body.data?.tx_ref;
   if (!txRef) return NextResponse.json({ ok: true });
 
@@ -18,8 +46,6 @@ export async function POST(req: NextRequest) {
   if (!success) return NextResponse.json({ ok: true });
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    // Without the service role we can't write for the user here; the return
-    // handler finalizes when they land back on the site.
     return NextResponse.json({ ok: true, note: "service role not configured" });
   }
 
