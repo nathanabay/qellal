@@ -34,7 +34,7 @@ export async function signup(
 
   const supabase = await createClient();
   const origin = (await headers()).get("origin") ?? "";
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -43,6 +43,10 @@ export async function signup(
     },
   });
   if (error) return { error: error.message };
+
+  // If email confirmation is OFF, signUp returns a live session → log straight in.
+  // If it's ON, there's no session yet → tell them to check their email.
+  if (data.session) redirect("/tenders");
   return {
     message:
       "Almost there — check your email for a confirmation link to activate your account.",
