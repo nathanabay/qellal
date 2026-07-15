@@ -113,7 +113,8 @@ export default async function AdminPage() {
               Review queue
             </h1>
             <p className="mt-1 text-sm text-muted">
-              Approve scraped &amp; submitted tenders, or add one manually.
+              Review manually-submitted tenders. Scraped tenders publish
+              automatically.
             </p>
           </div>
 
@@ -231,7 +232,8 @@ export default async function AdminPage() {
           >
             <h2 className="text-sm font-semibold text-ink">Add a tender manually</h2>
             <p className="mt-1 text-xs text-muted">
-              Publishes immediately. Title, deadline and source are required.
+              Goes to the review queue above. Title, deadline and source are
+              required.
             </p>
             <form action={createTender} className="mt-4 space-y-3">
               <input
@@ -297,7 +299,7 @@ export default async function AdminPage() {
                   className={inputClass}
                 />
               </div>
-              <SubmitButton pendingText="Publishing…">Publish tender</SubmitButton>
+              <SubmitButton pendingText="Submitting…">Submit for review</SubmitButton>
             </form>
           </section>
     </>

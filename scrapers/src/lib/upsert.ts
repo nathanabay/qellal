@@ -35,13 +35,18 @@ export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
   const fresh = urls.filter((u) => !seen.has(u)).map((u) => byUrl.get(u)!);
   if (fresh.length === 0) return { inserted: 0, skipped: urls.length };
 
+  // Scraped tenders auto-publish (manual admin entries are what get reviewed).
+  const nowIso = new Date().toISOString();
   const payload = fresh.map((t) => {
     const { category_slug, ...rest } = t;
     return {
       ...rest,
       category_id: category_slug ? (slugToId.get(category_slug) ?? null) : null,
-      status: "pending_review",
+      // published_date drives listing order; fall back to today if unknown.
+      published_date: rest.published_date ?? nowIso.slice(0, 10),
+      status: "published",
       created_by: "scraper",
+      published_at: nowIso,
     };
   });
 

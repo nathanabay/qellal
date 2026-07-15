@@ -53,8 +53,8 @@ export async function createTender(formData: FormData) {
     publishing_entity:
       String(formData.get("publishing_entity") ?? "").trim() || null,
     source_url: String(formData.get("source_url") ?? "").trim() || null,
-    published_date: today(),
-    status: "published",
+    // Manual entries go to the review queue; scraped tenders auto-publish.
+    status: "pending_review",
     created_by: "admin",
   });
   if (error) console.error("create tender failed:", error.message);
