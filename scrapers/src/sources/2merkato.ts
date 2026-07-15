@@ -105,8 +105,9 @@ export async function scrape2merkato(
   maxPages = 500,
   existingUrls: Set<string> = new Set(),
 ): Promise<TenderInput[]> {
-  const STOP_AFTER_CLOSED = 5; // stop once open tenders run out
-  let consecutiveClosed = 0;
+  // Scrapes open AND closed tenders — pages until maxPages (the safety cap) or
+  // the archive ends. maxPages is the real limiter now that we don't stop at
+  // the end of open tenders.
   let stopped = false;
   const username = process.env.MERKATO_USERNAME;
   const password = process.env.MERKATO_PASSWORD;
@@ -185,11 +186,9 @@ export async function scrape2merkato(
         new URL(request.url).searchParams.get("page") ?? "1",
       );
       const details: { url: string; label: string; userData: object }[] = [];
-      let openOnPage = 0;
       let newOnPage = 0;
       for (const t of list) {
-        if (t.is_open === false) continue;
-        openOnPage++;
+        // Open AND closed tenders — no is_open filter.
         const sourceUrl = `${BASE}/tenders/${t.id}`;
         if (existingUrls.has(sourceUrl)) continue; // already scraped — skip
         const title = t.title?.trim();
@@ -213,22 +212,19 @@ export async function scrape2merkato(
         };
         details.push({ url: sourceUrl, label: "detail", userData: { partial } });
       }
-      log.info(
-        `page ${pageNum}: ${list.length} rows, ${openOnPage} open, ${newOnPage} new`,
-      );
+      log.info(`page ${pageNum}: ${list.length} rows, ${newOnPage} new`);
 
-      consecutiveClosed = openOnPage === 0 ? consecutiveClosed + 1 : 0;
-      const done = consecutiveClosed >= STOP_AFTER_CLOSED;
-      if (!stopped && !done && list.length > 0 && pageNum < maxPages) {
-        // Chain the next list page (keeps list pages sequential for the
-        // auto-stop counter); enqueue it ahead of the detail backlog.
+      // Page until the archive ends (empty page) or we hit the maxPages cap.
+      if (!stopped && list.length > 0 && pageNum < maxPages) {
         await addRequests(
           [{ url: `${BASE}/tenders?status=open&page=${pageNum + 1}`, label: "list" }],
           { forefront: true },
         );
-      } else if (done && !stopped) {
+      } else if (!stopped) {
         stopped = true;
-        log.info(`auto-stop at page ${pageNum}: reached the end of open tenders.`);
+        log.info(
+          `stopping at page ${pageNum}: ${list.length === 0 ? "end of archive" : "reached max pages cap"}.`,
+        );
       }
       await addRequests(details);
     },
