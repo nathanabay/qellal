@@ -33,7 +33,13 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Do not run code between createServerClient and getUser() (Supabase guidance).
-  await supabase.auth.getUser();
+  // Guard against a transient auth-server hiccup: a failed refresh must not break
+  // the request or client navigation — pages still run their own auth checks.
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    // Session not refreshed this cycle; continue serving the request.
+  }
 
   return supabaseResponse;
 }
