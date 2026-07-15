@@ -1,26 +1,53 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Design tokens — three layers (per the design-system skill):
+   1. Primitives : raw brand values. Never used directly in components.
+   2. Semantic   : purpose aliases, exposed to Tailwind as utilities.
+   Brand: Trust Blue + Amber (deadline-forward).
+--------------------------------------------------------------------------- */
+
+/* Layer 1 — primitives */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --blue-50: #eff6ff;
+  --blue-700: #1d4ed8;
+  --blue-800: #1e40af;
+
+  --amber-100: #fef3c7;
+  --amber-700: #b45309;
+
+  --red-100: #fee2e2;
+  --red-600: #dc2626;
+
+  --slate-50: #f8fafc;
+  --slate-200: #e2e8f0;
+  --slate-500: #64748b;
+  --slate-900: #0f172a;
 }
 
+/* Layer 2 — semantic tokens → generate utilities (bg-primary, text-urgent, …) */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-primary: var(--blue-700);
+  --color-primary-hover: var(--blue-800);
+  --color-primary-soft: var(--blue-50);
+
+  --color-urgent: var(--red-600);       /* deadline ≤ 3 days */
+  --color-urgent-soft: var(--red-100);
+  --color-warn: var(--amber-700);       /* deadline ≤ 7 days */
+  --color-warn-soft: var(--amber-100);
+
+  --color-canvas: var(--slate-50);      /* page background */
+  --color-surface: #ffffff;             /* cards */
+  --color-border: var(--slate-200);
+  --color-ink: var(--slate-900);        /* primary text */
+  --color-muted: var(--slate-500);      /* secondary text */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }

@@ -1,21 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import { TenderCard, type TenderCardData } from "@/components/TenderCard";
 
-// Always fetch fresh during Phase 1 dev; we'll revisit caching later.
+// Always fetch fresh during Phase 1/2 dev; we'll revisit caching later.
 export const dynamic = "force-dynamic";
-
-type TenderRow = {
-  id: string;
-  title: string;
-  region: string | null;
-  deadline: string;
-  source_name: string;
-  publishing_entity: string | null;
-};
 
 type FetchResult =
   | { state: "not-configured" }
   | { state: "error"; message: string }
-  | { state: "ok"; tenders: TenderRow[] };
+  | { state: "ok"; tenders: TenderCardData[] };
 
 async function getPublishedTenders(): Promise<FetchResult> {
   // No keys yet → show a helpful "connect Supabase" state instead of crashing.
@@ -37,80 +29,59 @@ async function getPublishedTenders(): Promise<FetchResult> {
   return { state: "ok", tenders: data ?? [] };
 }
 
-function daysLeft(deadline: string): number {
-  return Math.ceil(
-    (new Date(deadline).getTime() - Date.now()) / 86_400_000,
-  );
-}
-
 export default async function Home() {
   const result = await getPublishedTenders();
+  const count = result.state === "ok" ? result.tenders.length : 0;
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8">
       <header className="mb-6">
-        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-          MVP · Phase 1
-        </span>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-          Qellal — Ethiopian Tenders
+        <div className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+          Qellal
+        </div>
+        <h1 className="mt-3 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+          Latest Ethiopian tenders
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          One place for every tender notice, with email &amp; Telegram alerts so
+        <p className="mt-1 text-sm text-muted">
+          Every tender notice in one place — with email &amp; Telegram alerts so
           you never miss a deadline.
+          {result.state === "ok" && count > 0 && (
+            <span className="text-ink"> {count} open now.</span>
+          )}
         </p>
       </header>
 
       {result.state === "not-configured" && (
-        <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
-          <p className="font-medium">Supabase isn&apos;t connected yet.</p>
+        <div className="rounded-xl border border-dashed border-warn/40 bg-warn-soft p-4 text-sm text-warn">
+          <p className="font-semibold">Supabase isn&apos;t connected yet.</p>
           <p className="mt-1">
-            Add your keys to <code className="font-mono">.env.local</code> and run
-            the SQL in <code className="font-mono">supabase/migrations/</code>,
-            then reload — the seeded tenders will appear here.
+            Add your keys to <code className="font-mono">.env.local</code>, then
+            reload — the seeded tenders will appear here.
           </p>
         </div>
       )}
 
       {result.state === "error" && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-medium">Couldn&apos;t load tenders.</p>
+        <div className="rounded-xl border border-urgent/40 bg-urgent-soft p-4 text-sm text-urgent">
+          <p className="font-semibold">Couldn&apos;t load tenders.</p>
           <p className="mt-1">{result.message}</p>
         </div>
       )}
 
       {result.state === "ok" && result.tenders.length === 0 && (
-        <div className="rounded-lg border p-4 text-sm text-gray-500">
+        <div className="rounded-xl border border-border bg-surface p-4 text-sm text-muted">
           No published tenders yet.
         </div>
       )}
 
       {result.state === "ok" && result.tenders.length > 0 && (
         <ul className="space-y-3">
-          {result.tenders.map((t) => {
-            const d = daysLeft(t.deadline);
-            return (
-              <li key={t.id} className="rounded-lg border p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-medium">{t.title}</h2>
-                  <span
-                    className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${
-                      d <= 3
-                        ? "bg-red-100 text-red-700"
-                        : "bg-emerald-100 text-emerald-700"
-                    }`}
-                  >
-                    {d}d left
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-gray-500">
-                  {t.region ?? "Ethiopia"}
-                  {t.publishing_entity ? ` · ${t.publishing_entity}` : ""} ·
-                  Source: {t.source_name}
-                </p>
-              </li>
-            );
-          })}
+          {result.tenders.map((t) => (
+            <li key={t.id}>
+              <TenderCard tender={t} />
+            </li>
+          ))}
         </ul>
       )}
     </main>
