@@ -35,6 +35,12 @@ export async function SiteHeader() {
 
           {email ? (
             <>
+              <Link
+                href="/account"
+                className="rounded-lg px-3 py-1.5 font-medium text-muted hover:bg-primary-soft hover:text-primary"
+              >
+                My alerts
+              </Link>
               <span className="hidden text-muted sm:inline" title={email}>
                 {email}
               </span>

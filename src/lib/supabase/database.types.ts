@@ -13,11 +13,13 @@ export type Database = {
   public: {
     Tables: {
       categories: {
+        Relationships: [];
         Row: { id: number; name: string; slug: string };
         Insert: { id?: number; name: string; slug: string };
         Update: { id?: number; name?: string; slug?: string };
       };
       tenders: {
+        Relationships: [];
         Row: {
           id: string;
           title: string;
@@ -65,6 +67,7 @@ export type Database = {
         };
       };
       profiles: {
+        Relationships: [];
         Row: {
           id: string;
           full_name: string | null;
@@ -103,6 +106,7 @@ export type Database = {
         };
       };
       subscriptions: {
+        Relationships: [];
         Row: {
           id: string;
           user_id: string;
@@ -129,6 +133,7 @@ export type Database = {
         };
       };
       notifications_sent: {
+        Relationships: [];
         Row: {
           id: string;
           user_id: string;
