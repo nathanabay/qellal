@@ -71,97 +71,163 @@ export default async function TenderDetailPage({
     meta.push({ label: "Published", value: formatDate(tender.published_date) });
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8">
-      <Link
-        href="/tenders"
-        className="text-sm font-medium text-primary hover:text-primary-hover"
-      >
-        ← Back to tenders
-      </Link>
+    <main className="mx-auto w-full max-w-5xl px-4 py-8">
+      {/* Breadcrumb */}
+      <nav className="text-xs text-muted" aria-label="Breadcrumb">
+        <Link href="/" className="hover:text-primary">
+          Home
+        </Link>{" "}
+        <span aria-hidden="true">/</span>{" "}
+        <Link href="/tenders" className="hover:text-primary">
+          Tenders
+        </Link>
+      </nav>
 
-      <h1 className="mt-4 text-2xl font-bold leading-tight tracking-tight text-ink sm:text-3xl">
-        {tender.title}
-      </h1>
+      <div className="mt-5 lg:grid lg:grid-cols-[1fr_20rem] lg:gap-8">
+        {/* Main column */}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {categoryName && (
+              <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-semibold text-primary">
+                {categoryName}
+              </span>
+            )}
+            {tender.region && (
+              <span className="text-xs font-medium text-muted">
+                {tender.region}
+              </span>
+            )}
+          </div>
+          <h1 className="mt-3 font-heading text-3xl font-bold leading-[1.15] text-ink sm:text-4xl">
+            {tender.title}
+          </h1>
+          {tender.publishing_entity && (
+            <p className="mt-3 text-sm text-muted">
+              Published by{" "}
+              <span className="font-medium text-ink">
+                {tender.publishing_entity}
+              </span>
+            </p>
+          )}
 
-      {/* Deadline — the user's #1 anxiety, front and centre */}
-      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface p-4">
-        <span
-          className={`rounded-full px-3 py-1 text-sm font-semibold ${urgency.cls}`}
-        >
-          {urgency.label}
-        </span>
-        <span className="text-sm text-muted">
-          Deadline:{" "}
-          <span className="font-semibold text-ink">
-            {formatDate(tender.deadline)}
-          </span>
-        </span>
-        {user ? (
-          <form action={toggleSaveTender} className="ml-auto">
-            <input type="hidden" name="tender_id" value={tender.id} />
-            <input type="hidden" name="saved" value={saved ? "1" : "0"} />
-            <SubmitButton
-              variant="secondary"
-              className={saved ? "border-primary bg-primary-soft text-primary" : ""}
-              aria-label={saved ? "Remove from saved" : "Save tender"}
-            >
-              <StarIcon filled={saved} />
-              {saved ? "Saved" : "Save"}
-            </SubmitButton>
-          </form>
-        ) : (
-          <Link
-            href="/login"
-            className="ml-auto inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-primary hover:bg-primary-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            Sign in to save
-          </Link>
-        )}
-      </div>
-
-      {meta.length > 0 && (
-        <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2">
-          {meta.map((m) => (
-            <div key={m.label}>
-              <dt className="text-xs uppercase tracking-wide text-muted">
-                {m.label}
-              </dt>
-              <dd className="mt-0.5 text-sm font-medium text-ink">{m.value}</dd>
+          {/* Description */}
+          <section className="mt-8">
+            <h2 className="font-heading text-lg font-semibold text-ink">
+              Description
+            </h2>
+            <div className="mt-3 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
+              {tender.description ? (
+                <p className="whitespace-pre-line leading-relaxed text-ink">
+                  {tender.description}
+                </p>
+              ) : (
+                <p className="text-sm text-muted">
+                  No description provided — see the original notice for full
+                  details.
+                </p>
+              )}
             </div>
-          ))}
-        </dl>
-      )}
+          </section>
 
-      {tender.description && (
-        <section className="mt-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            Description
-          </h2>
-          <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink">
-            {tender.description}
-          </p>
-        </section>
-      )}
+          {/* Source attribution (legal) */}
+          <section className="mt-6 rounded-2xl border border-border bg-canvas p-5">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Source
+            </h2>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-medium text-ink">{tender.source_name}</p>
+                <p className="mt-1 text-xs text-muted">
+                  Always verify against the original notice before bidding.
+                </p>
+              </div>
+              {tender.source_url && (
+                <a
+                  href={tender.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-primary transition-colors hover:bg-primary-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  View original ↗
+                </a>
+              )}
+            </div>
+          </section>
 
-      {/* Source attribution — legal requirement: always shown, linked when possible */}
-      <section className="mt-6 rounded-xl border border-border bg-canvas p-4 text-sm">
-        <span className="text-muted">Source: </span>
-        {tender.source_url ? (
-          <a
-            href={tender.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-primary hover:text-primary-hover"
-          >
-            {tender.source_name} ↗
-          </a>
-        ) : (
-          <span className="font-medium text-ink">{tender.source_name}</span>
-        )}
-        <p className="mt-1 text-xs text-muted">
-          Always verify details against the original source before bidding.
-        </p>
-      </section>
+          <div className="mt-8">
+            <Link
+              href="/tenders"
+              className="text-sm font-medium text-primary hover:text-primary-hover"
+            >
+              ← Back to all tenders
+            </Link>
+          </div>
+        </div>
+
+        {/* Sticky key-facts sidebar */}
+        <aside className="mt-8 lg:mt-0">
+          <div className="space-y-4 lg:sticky lg:top-20">
+            {/* Deadline card — the #1 anxiety, front and centre */}
+            <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${urgency.cls}`}
+              >
+                {urgency.label}
+              </span>
+              <div className="mt-3">
+                <div className="font-heading text-2xl font-bold text-ink">
+                  {formatDate(tender.deadline)}
+                </div>
+                <div className="text-sm text-muted">Submission deadline</div>
+              </div>
+              <div className="mt-5">
+                {user ? (
+                  <form action={toggleSaveTender}>
+                    <input type="hidden" name="tender_id" value={tender.id} />
+                    <input
+                      type="hidden"
+                      name="saved"
+                      value={saved ? "1" : "0"}
+                    />
+                    <SubmitButton
+                      variant="secondary"
+                      className={`w-full ${saved ? "border-primary bg-primary-soft text-primary" : ""}`}
+                      aria-label={saved ? "Remove from saved" : "Save tender"}
+                    >
+                      <StarIcon filled={saved} />
+                      {saved ? "Saved" : "Save this tender"}
+                    </SubmitButton>
+                  </form>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-border px-4 text-sm font-medium text-primary hover:bg-primary-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    Sign in to save
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* Facts */}
+            {meta.length > 0 && (
+              <dl className="divide-y divide-border rounded-2xl border border-border bg-surface px-5 text-sm">
+                {meta.map((m) => (
+                  <div
+                    key={m.label}
+                    className="flex items-center justify-between gap-3 py-3"
+                  >
+                    <dt className="text-muted">{m.label}</dt>
+                    <dd className="text-right font-medium text-ink">
+                      {m.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
+        </aside>
+      </div>
     </main>
   );
 }

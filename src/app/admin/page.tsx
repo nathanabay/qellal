@@ -134,7 +134,7 @@ export default async function AdminPage() {
                     <s.Icon className="h-4 w-4" />
                   </span>
                 </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-ink">
+                <p className="mt-2 font-heading text-2xl font-bold tabular-nums text-ink">
                   {s.value}
                 </p>
               </div>
