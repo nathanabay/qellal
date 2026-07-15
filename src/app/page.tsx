@@ -34,7 +34,7 @@ async function getPublishedTenders(): Promise<FetchResult> {
     console.error("tenders fetch failed:", error.message);
     return { state: "error", message: error.message };
   }
-  return { state: "ok", tenders: (data ?? []) as TenderRow[] };
+  return { state: "ok", tenders: data ?? [] };
 }
 
 function daysLeft(deadline: string): number {
