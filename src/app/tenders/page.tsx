@@ -3,8 +3,8 @@ import {
   getCategories,
   getDistinctRegions,
 } from "@/lib/tenders";
-import { TenderCard } from "@/components/TenderCard";
-import { TenderFilters } from "@/components/TenderFilters";
+import { createClient } from "@/lib/supabase/server";
+import { TenderBrowser } from "@/components/TenderBrowser";
 
 export const dynamic = "force-dynamic";
 
@@ -13,41 +13,17 @@ export const metadata = {
   description: "All published Ethiopian tender notices, newest first.",
 };
 
-type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
-
-function str(v: string | string[] | undefined): string | undefined {
-  return typeof v === "string" && v.length > 0 ? v : undefined;
-}
-
-export default async function TendersPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const sp = await searchParams;
-  const q = str(sp.q);
-  const categorySlug = str(sp.category);
-  const region = str(sp.region);
-  const deadlineParam = str(sp.deadline);
-
-  const [categories, regions] = await Promise.all([
+export default async function TendersPage() {
+  const [result, categories, regions] = await Promise.all([
+    getPublishedTenders({ sort: "recent" }),
     getCategories(),
     getDistinctRegions(),
   ]);
 
-  const category = categorySlug
-    ? categories.find((c) => c.slug === categorySlug)
-    : undefined;
-  const deadlineInDays =
-    deadlineParam === "7" ? 7 : deadlineParam === "30" ? 30 : undefined;
-
-  const result = await getPublishedTenders({
-    sort: "recent",
-    filters: { q, categoryId: category?.id, region, deadlineInDays },
-  });
-
-  const count = result.state === "ok" ? result.tenders.length : 0;
-  const filtered = Boolean(q || categorySlug || region || deadlineParam);
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8">
@@ -56,13 +32,9 @@ export default async function TendersPage({
           Tenders
         </h1>
         <p className="mt-1 text-sm text-muted">
-          {result.state === "ok"
-            ? `${count} ${count === 1 ? "tender" : "tenders"}${filtered ? " match your filters" : " published, newest first"}.`
-            : "Published Ethiopian tender notices."}
+          Filter instantly, then save your search as an alert.
         </p>
       </header>
-
-      <TenderFilters categories={categories} regions={regions} />
 
       {result.state === "not-configured" && (
         <div className="rounded-xl border border-dashed border-warn/40 bg-warn-soft p-4 text-sm text-warn">
@@ -81,22 +53,13 @@ export default async function TendersPage({
         </div>
       )}
 
-      {result.state === "ok" && result.tenders.length === 0 && (
-        <div className="rounded-xl border border-border bg-surface p-6 text-center text-sm text-muted">
-          {filtered
-            ? "No tenders match — try removing a filter."
-            : "No published tenders yet. Check back soon."}
-        </div>
-      )}
-
-      {result.state === "ok" && result.tenders.length > 0 && (
-        <ul className="space-y-3">
-          {result.tenders.map((t) => (
-            <li key={t.id}>
-              <TenderCard tender={t} />
-            </li>
-          ))}
-        </ul>
+      {result.state === "ok" && (
+        <TenderBrowser
+          tenders={result.tenders}
+          categories={categories}
+          regions={regions}
+          isLoggedIn={Boolean(user)}
+        />
       )}
     </main>
   );

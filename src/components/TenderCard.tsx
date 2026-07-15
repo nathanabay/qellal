@@ -8,6 +8,7 @@ export type TenderCardData = {
   deadline: string;
   source_name: string;
   publishing_entity: string | null;
+  category_id: number | null;
 };
 
 export function TenderCard({ tender }: { tender: TenderCardData }) {

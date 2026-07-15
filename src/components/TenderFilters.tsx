@@ -1,66 +1,44 @@
 "use client";
 
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 import type { Category } from "@/lib/tenders";
 
-type Props = {
-  categories: Category[];
-  regions: string[];
+export type FilterState = {
+  q: string;
+  category: string; // category slug
+  region: string;
+  deadline: string; // "" | "7" | "30"
 };
 
 const selectClass =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink";
 
-export function TenderFilters({ categories, regions }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  // Keyword is a controlled input with a debounce so we don't push on every key.
-  const [q, setQ] = useState(searchParams.get("q") ?? "");
-  const firstRender = useRef(true);
-
-  function setParam(key: string, value: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
-    else params.delete(key);
-    // replace (not push) so typing doesn't spam browser history.
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }
-
-  // Debounced keyword → URL.
-  useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
-    }
-    const t = setTimeout(() => setParam("q", q), 300);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
-
-  const category = searchParams.get("category") ?? "";
-  const region = searchParams.get("region") ?? "";
-  const deadline = searchParams.get("deadline") ?? "";
-  const hasFilters = Boolean(q || category || region || deadline);
-
+// Presentational, fully controlled — parent owns state & does the filtering.
+export function TenderFilters({
+  value,
+  onChange,
+  categories,
+  regions,
+}: {
+  value: FilterState;
+  onChange: (patch: Partial<FilterState>) => void;
+  categories: Category[];
+  regions: string[];
+}) {
   return (
-    <div className="mb-5 rounded-xl border border-border bg-surface p-3">
+    <div className="mb-4 rounded-xl border border-border bg-surface p-3">
       <input
         type="search"
         inputMode="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
+        value={value.q}
+        onChange={(e) => onChange({ q: e.target.value })}
         placeholder="Search tenders by title…"
-        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
         aria-label="Search tenders by title"
+        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
       />
-
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <select
-          value={category}
-          onChange={(e) => setParam("category", e.target.value)}
+          value={value.category}
+          onChange={(e) => onChange({ category: e.target.value })}
           className={selectClass}
           aria-label="Filter by category"
         >
@@ -71,10 +49,9 @@ export function TenderFilters({ categories, regions }: Props) {
             </option>
           ))}
         </select>
-
         <select
-          value={region}
-          onChange={(e) => setParam("region", e.target.value)}
+          value={value.region}
+          onChange={(e) => onChange({ region: e.target.value })}
           className={selectClass}
           aria-label="Filter by region"
         >
@@ -85,10 +62,9 @@ export function TenderFilters({ categories, regions }: Props) {
             </option>
           ))}
         </select>
-
         <select
-          value={deadline}
-          onChange={(e) => setParam("deadline", e.target.value)}
+          value={value.deadline}
+          onChange={(e) => onChange({ deadline: e.target.value })}
           className={selectClass}
           aria-label="Filter by deadline"
         >
@@ -97,21 +73,6 @@ export function TenderFilters({ categories, regions }: Props) {
           <option value="30">Closing in 30 days</option>
         </select>
       </div>
-
-      {hasFilters && (
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              setQ("");
-              router.replace(pathname, { scroll: false });
-            }}
-            className="text-sm font-medium text-primary hover:text-primary-hover"
-          >
-            Clear filters
-          </button>
-        </div>
-      )}
     </div>
   );
 }

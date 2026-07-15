@@ -24,7 +24,8 @@ type GetOptions = {
   filters?: TenderFilters;
 };
 
-const COLUMNS = "id,title,region,deadline,source_name,publishing_entity";
+const COLUMNS =
+  "id,title,region,deadline,source_name,publishing_entity,category_id";
 
 export async function getPublishedTenders(
   opts: GetOptions = {},
