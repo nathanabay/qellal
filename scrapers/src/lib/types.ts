@@ -10,4 +10,7 @@ export type TenderInput = {
   deadline: string; // YYYY-MM-DD — required by the schema
   source_name: string; // legal: attribution always
   source_url: string; // legal: link back to the original notice
+  // Our super-category slug (resolved to category_id by the upsert layer). Null
+  // when the source category is missing or unmapped — admin assigns on review.
+  category_slug: string | null;
 };

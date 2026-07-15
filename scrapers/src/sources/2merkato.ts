@@ -1,5 +1,6 @@
 import { CheerioCrawler } from "crawlee";
 import type { TenderInput } from "../lib/types";
+import { toSuperSlug } from "../lib/merkato-categories";
 import {
   merkatoLogin,
   cookieHeaderFor,
@@ -7,20 +8,16 @@ import {
   type MerkatoSession,
 } from "../lib/merkato-auth";
 
-// tender.2merkato.com is an Inertia.js (Laravel + Vue) app that server-embeds
-// its tender list in `<div id="app" data-page="…">`. With no login we only see
-// the ~20% of tenders that expose a deadline publicly; authenticated as a
-// subscriber, bid_closing_date is populated for all open tenders. We read
-// everything we need (title, deadline, entity, region, link) from the LIST
-// payload, so we never hit per-tender detail pages. Attribution link always set.
+// tender.2merkato.com is an Inertia.js (Laravel + Vue) app. The tender LIST is
+// server-embedded in `<div id="app" data-page="…">`, but the category lives
+// only on each tender's DETAIL page (props.tender.categories) — so we crawl:
+// list page → enqueue each open tender's detail → read category + description.
+// Authenticated (MERKATO_USERNAME/PASSWORD) the closing dates are visible.
+// Legal: public listing metadata + attribution link; no paywalled docs.
 const BASE = "https://tender.2merkato.com";
 const SOURCE_NAME = "2merkato";
 
-type RawCompany = { name_en?: string | null; name?: string | null } | null;
-type RawRegion =
-  | { name_en?: string | null; name?: string | null }
-  | string
-  | null;
+type NamePair = { name_en?: string | null; name?: string | null };
 type RawTender = {
   id: string;
   title: string | null;
@@ -29,27 +26,53 @@ type RawTender = {
   bid_closing_date: string | null;
   published_at: string | null;
   created_at: string | null;
-  company: RawCompany;
-  region: RawRegion;
+  company: NamePair | null;
+  region: NamePair | string | null;
+  categories: NamePair[] | NamePair | string | null;
   is_open: boolean;
 };
 
-// "2026-07-24 17:00:00" or ISO → "2026-07-24" (or null if unparseable).
 function toDate(s: string | null | undefined): string | null {
   if (!s) return null;
   const d = s.slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
 }
 
-function regionName(r: RawRegion): string | null {
-  if (!r) return null;
-  if (typeof r === "string") return r.trim() || null;
-  return r.name_en ?? r.name ?? null;
+function nameOf(v: NamePair | string | null | undefined): string | null {
+  if (!v) return null;
+  if (typeof v === "string") return v.trim() || null;
+  return v.name_en ?? v.name ?? null;
 }
 
-function companyName(c: RawCompany): string | null {
-  if (!c) return null;
-  return c.name_en ?? c.name ?? null;
+// 2merkato categories can be a list, a single object, or a string. Return the
+// first raw name that maps to one of our super-categories (else the first name).
+function categorySlug(
+  cats: NamePair[] | NamePair | string | null,
+): { slug: string | null; raw: string | null } {
+  const names: string[] = [];
+  if (Array.isArray(cats)) {
+    for (const c of cats) {
+      const n = nameOf(c);
+      if (n) names.push(n);
+    }
+  } else {
+    const n = nameOf(cats);
+    if (n) names.push(n);
+  }
+  for (const n of names) {
+    const slug = toSuperSlug(n);
+    if (slug) return { slug, raw: n };
+  }
+  return { slug: null, raw: names[0] ?? null };
+}
+
+function cleanText(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const t = s
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return t || null;
 }
 
 export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
@@ -67,13 +90,12 @@ export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
   }
 
   const results: TenderInput[] = [];
-  let sawClosingDate = false;
+  const unmapped = new Set<string>();
 
   const crawler = new CheerioCrawler({
-    maxConcurrency: 2,
+    maxConcurrency: 3,
     maxRequestRetries: 3,
     requestHandlerTimeoutSecs: 60,
-    // Inject the auth cookie (and a real UA) on every request when logged in.
     preNavigationHooks: [
       (_ctx, gotOptions) => {
         gotOptions.headers = {
@@ -83,13 +105,15 @@ export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
         };
       },
     ],
-    async requestHandler({ $, request, log }) {
+    async requestHandler({ $, request, log, addRequests }) {
       const raw = $("#app").attr("data-page");
       if (!raw) {
         log.warning(`no data-page at ${request.url}`);
         return;
       }
-      let page: { props?: { tenders?: { data?: RawTender[] } } };
+      let page: {
+        props?: { tenders?: { data?: RawTender[] }; tender?: RawTender };
+      };
       try {
         page = JSON.parse(raw);
       } catch {
@@ -97,44 +121,64 @@ export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
         return;
       }
 
+      // DETAIL page: enrich the partial from userData with category + description.
+      if (request.label === "detail") {
+        const t = page.props?.tender;
+        const base = request.userData.partial as TenderInput;
+        if (t) {
+          const { slug, raw: rawCat } = categorySlug(t.categories);
+          if (rawCat && !slug) unmapped.add(rawCat);
+          base.category_slug = slug;
+          base.description =
+            cleanText(t.description) ?? cleanText(t.ai_summary) ?? null;
+        }
+        results.push(base);
+        return;
+      }
+
+      // LIST page: build a partial per open tender, then enqueue its detail.
       const list = page.props?.tenders?.data ?? [];
       log.info(`${request.url} → ${list.length} tenders`);
-
+      const details: { url: string; label: string; userData: object }[] = [];
       for (const t of list) {
         if (t.is_open === false) continue;
         const title = t.title?.trim();
         const deadline = toDate(t.bid_closing_date);
-        if (t.bid_closing_date) sawClosingDate = true;
-        if (!title || !deadline) continue; // schema requires both
+        if (!title || !deadline) continue;
 
-        results.push({
+        const partial: TenderInput = {
           title,
-          description: t.description ?? t.ai_summary ?? null,
-          region: regionName(t.region),
-          publishing_entity: companyName(t.company),
+          description: cleanText(t.description) ?? cleanText(t.ai_summary),
+          region: nameOf(t.region),
+          publishing_entity: nameOf(t.company),
           published_date: toDate(t.published_at ?? t.created_at),
           deadline,
           source_name: SOURCE_NAME,
           source_url: `${BASE}/tenders/${t.id}`,
+          category_slug: null,
+        };
+        details.push({
+          url: `${BASE}/tenders/${t.id}`,
+          label: "detail",
+          userData: { partial },
         });
       }
+      await addRequests(details);
     },
     failedRequestHandler({ request, log }) {
       log.error(`request failed after retries: ${request.url}`);
     },
   });
 
-  // status=open keeps us to currently-open tenders; page 1 is newest-first.
   const urls = Array.from(
     { length: maxPages },
     (_, i) => `${BASE}/tenders?status=open&page=${i + 1}`,
   );
   await crawler.run(urls);
 
-  if (session && !sawClosingDate) {
-    console.warn(
-      "2merkato: logged in but every closing date was still hidden — " +
-        "the session may not have authenticated. Check credentials.",
+  if (unmapped.size > 0) {
+    console.log(
+      `2merkato: ${unmapped.size} category name(s) had no super-category mapping (left uncategorized): ${[...unmapped].slice(0, 15).join(", ")}`,
     );
   }
   return results;

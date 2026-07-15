@@ -11,6 +11,12 @@ export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
 
   const supabase = getSupabase();
 
+  // Resolve category slugs → ids once (small table).
+  const { data: cats } = await supabase.from("categories").select("id,slug");
+  const slugToId = new Map<string, number>(
+    (cats ?? []).map((c: { id: number; slug: string }) => [c.slug, c.id]),
+  );
+
   // Collapse duplicate source_urls within this batch first.
   const byUrl = new Map<string, TenderInput>();
   for (const r of rows) byUrl.set(r.source_url, r);
@@ -29,12 +35,15 @@ export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
   const fresh = urls.filter((u) => !seen.has(u)).map((u) => byUrl.get(u)!);
   if (fresh.length === 0) return { inserted: 0, skipped: urls.length };
 
-  const payload = fresh.map((t) => ({
-    ...t,
-    category_id: null, // admin assigns during review
-    status: "pending_review",
-    created_by: "scraper",
-  }));
+  const payload = fresh.map((t) => {
+    const { category_slug, ...rest } = t;
+    return {
+      ...rest,
+      category_id: category_slug ? (slugToId.get(category_slug) ?? null) : null,
+      status: "pending_review",
+      created_by: "scraper",
+    };
+  });
 
   const { error: insErr, count } = await supabase
     .from("tenders")
