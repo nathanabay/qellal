@@ -70,6 +70,14 @@ export function UsersIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+export function AlertIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.38c-.866 1.5.217 3.37 1.948 3.37h14.71c1.73 0 2.813-1.87 1.948-3.37L13.949 3.38c-.866-1.5-3.032-1.5-3.898 0L2.697 16.12ZM12 15.75h.007v.008H12v-.008Z" />
+    </svg>
+  );
+}
+
 export function SpinnerIcon({ className = "h-4 w-4" }: IconProps) {
   return (
     <svg className={`${className} animate-spin`} viewBox="0 0 24 24" fill="none" aria-hidden="true">

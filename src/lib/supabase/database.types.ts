@@ -133,6 +133,8 @@ export type Database = {
           current_period_end: string | null;
           cancel_at_period_end: boolean;
           canceled_at: string | null;
+          past_due_since: string | null;
+          dunning_attempt: number;
           created_at: string | null;
           updated_at: string | null;
         };
@@ -145,6 +147,8 @@ export type Database = {
           current_period_end?: string | null;
           cancel_at_period_end?: boolean;
           canceled_at?: string | null;
+          past_due_since?: string | null;
+          dunning_attempt?: number;
           created_at?: string | null;
           updated_at?: string | null;
         };
@@ -157,6 +161,8 @@ export type Database = {
           current_period_end?: string | null;
           cancel_at_period_end?: boolean;
           canceled_at?: string | null;
+          past_due_since?: string | null;
+          dunning_attempt?: number;
           created_at?: string | null;
           updated_at?: string | null;
         };

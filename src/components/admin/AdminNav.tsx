@@ -8,6 +8,7 @@ import {
   BellIcon,
   TagIcon,
   DocumentIcon,
+  AlertIcon,
 } from "@/components/ui/icons";
 
 // Admin sidebar with exact-match active state.
@@ -27,6 +28,12 @@ export function AdminNav({ role }: { role: string }) {
       href: "/admin/invoices",
       label: "Invoices",
       Icon: DocumentIcon,
+      show: role === "admin",
+    },
+    {
+      href: "/admin/dunning",
+      label: "Dunning",
+      Icon: AlertIcon,
       show: role === "admin",
     },
     {
