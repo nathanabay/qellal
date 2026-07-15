@@ -96,8 +96,11 @@ function publishedOn(sources: RawSource[] | null): string | null {
 // maxPages is a safety cap; the crawl normally auto-stops well before it once
 // open tenders run out (~300 pages). STOP_AFTER_CLOSED = how many consecutive
 // all-closed pages to see before concluding there are no more open tenders.
-export async function scrape2merkato(maxPages = 500): Promise<TenderInput[]> {
-  const STOP_AFTER_CLOSED = 5;
+export async function scrape2merkato(
+  maxPages = 500,
+  existingUrls: Set<string> = new Set(),
+): Promise<TenderInput[]> {
+  const STOP_AFTER_CLOSED = 5; // stop once open tenders run out
   let consecutiveClosed = 0;
   let stopped = false;
   const username = process.env.MERKATO_USERNAME;
@@ -117,9 +120,9 @@ export async function scrape2merkato(maxPages = 500): Promise<TenderInput[]> {
   const unmapped = new Set<string>();
 
   const crawler = new CheerioCrawler({
-    maxConcurrency: 3,
-    // 2merkato returns HTTP 429 (Retry-After ~43s) after ~168 requests in a
-    // short window. Stay well under that; Crawlee also auto-retries 429s.
+    // Gentle: one request at a time, ~500ms apart (120/min). 2merkato 429s
+    // after bursts (~168 requests), so sequential + spaced avoids it entirely.
+    maxConcurrency: 1,
     maxRequestsPerMinute: 120,
     maxRequestRetries: 5,
     requestHandlerTimeoutSecs: 60,
@@ -177,12 +180,16 @@ export async function scrape2merkato(maxPages = 500): Promise<TenderInput[]> {
       );
       const details: { url: string; label: string; userData: object }[] = [];
       let openOnPage = 0;
+      let newOnPage = 0;
       for (const t of list) {
         if (t.is_open === false) continue;
         openOnPage++;
+        const sourceUrl = `${BASE}/tenders/${t.id}`;
+        if (existingUrls.has(sourceUrl)) continue; // already scraped — skip
         const title = t.title?.trim();
         const deadline = toDate(t.bid_closing_date);
         if (!title || !deadline) continue;
+        newOnPage++;
 
         const partial: TenderInput = {
           title,
@@ -192,19 +199,17 @@ export async function scrape2merkato(maxPages = 500): Promise<TenderInput[]> {
           published_date: toDate(t.published_at ?? t.created_at),
           deadline,
           source_name: SOURCE_NAME,
-          source_url: `${BASE}/tenders/${t.id}`,
+          source_url: sourceUrl,
           category_slug: null,
           bid_bond: toStr(t.bid_bond),
           bid_document_price: toStr(t.bid_document_price),
           published_on: publishedOn(t.sources),
         };
-        details.push({
-          url: `${BASE}/tenders/${t.id}`,
-          label: "detail",
-          userData: { partial },
-        });
+        details.push({ url: sourceUrl, label: "detail", userData: { partial } });
       }
-      log.info(`page ${pageNum}: ${list.length} rows, ${openOnPage} open`);
+      log.info(
+        `page ${pageNum}: ${list.length} rows, ${openOnPage} open, ${newOnPage} new`,
+      );
 
       consecutiveClosed = openOnPage === 0 ? consecutiveClosed + 1 : 0;
       const done = consecutiveClosed >= STOP_AFTER_CLOSED;
@@ -217,9 +222,7 @@ export async function scrape2merkato(maxPages = 500): Promise<TenderInput[]> {
         );
       } else if (done && !stopped) {
         stopped = true;
-        log.info(
-          `auto-stop at page ${pageNum}: ${STOP_AFTER_CLOSED} consecutive pages with no open tenders — reached the end of open tenders.`,
-        );
+        log.info(`auto-stop at page ${pageNum}: reached the end of open tenders.`);
       }
       await addRequests(details);
     },

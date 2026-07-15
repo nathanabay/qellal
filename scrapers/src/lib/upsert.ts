@@ -3,6 +3,26 @@ import type { TenderInput } from "./types";
 
 export type SaveResult = { inserted: number; skipped: number };
 
+// Every source_url already stored (any status), so a scraper can skip tenders
+// it has seen before instead of re-fetching their detail pages.
+export async function getExistingSourceUrls(): Promise<Set<string>> {
+  const supabase = getSupabase();
+  const urls = new Set<string>();
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("tenders")
+      .select("source_url")
+      .not("source_url", "is", null)
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`load existing urls failed: ${error.message}`);
+    const rows = (data ?? []) as { source_url: string | null }[];
+    for (const r of rows) if (r.source_url) urls.add(r.source_url);
+    if (rows.length < pageSize) break;
+  }
+  return urls;
+}
+
 // Insert scraped tenders into the review queue, skipping any whose source_url
 // already exists (dedupe by attribution link — the stable per-notice id).
 // NON-NEGOTIABLE: scrapers only ever write status='pending_review'.
