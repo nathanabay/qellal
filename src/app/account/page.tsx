@@ -252,7 +252,9 @@ export default async function AccountPage({
               className="h-4 w-4"
             />
             Telegram notifications
-            <span className="text-xs text-muted">(connect coming soon)</span>
+            <span className="text-xs text-muted">
+              (connect your chat below)
+            </span>
           </label>
           <SubmitButton pendingText="Saving…">Save preferences</SubmitButton>
         </form>
