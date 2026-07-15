@@ -69,6 +69,12 @@ export default async function TenderDetailPage({
     meta.push({ label: "Publishing entity", value: tender.publishing_entity });
   if (tender.published_date)
     meta.push({ label: "Published", value: formatDate(tender.published_date) });
+  if (tender.published_on)
+    meta.push({ label: "Published on", value: tender.published_on });
+  if (tender.bid_bond)
+    meta.push({ label: "Bid bond", value: tender.bid_bond });
+  if (tender.bid_document_price)
+    meta.push({ label: "Document price", value: tender.bid_document_price });
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">

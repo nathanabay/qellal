@@ -94,6 +94,9 @@ export type TenderDetail = {
   deadline: string;
   source_name: string;
   source_url: string | null;
+  bid_bond: string | null;
+  bid_document_price: string | null;
+  published_on: string | null;
 };
 
 // Single published tender by id. Returns null if missing, unpublished, or the
@@ -105,7 +108,7 @@ export async function getTenderById(id: string): Promise<TenderDetail | null> {
   const { data, error } = await supabase
     .from("tenders")
     .select(
-      "id,title,description,category_id,region,publishing_entity,published_date,deadline,source_name,source_url",
+      "id,title,description,category_id,region,publishing_entity,published_date,deadline,source_name,source_url,bid_bond,bid_document_price,published_on",
     )
     .eq("id", id)
     .eq("status", "published")

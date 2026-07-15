@@ -18,6 +18,7 @@ const BASE = "https://tender.2merkato.com";
 const SOURCE_NAME = "2merkato";
 
 type NamePair = { name_en?: string | null; name?: string | null };
+type RawSource = { name_en?: string | null; publication_date?: string | null };
 type RawTender = {
   id: string;
   title: string | null;
@@ -26,6 +27,9 @@ type RawTender = {
   bid_closing_date: string | null;
   published_at: string | null;
   created_at: string | null;
+  bid_bond: string | number | null;
+  bid_document_price: string | number | null;
+  sources: RawSource[] | null;
   company: NamePair | null;
   region: NamePair | string | null;
   categories: NamePair[] | NamePair | string | null;
@@ -73,6 +77,20 @@ function cleanText(s: string | null | undefined): string | null {
     .replace(/\s+/g, " ")
     .trim();
   return t || null;
+}
+
+function toStr(v: string | number | null | undefined): string | null {
+  if (v === null || v === undefined || v === "") return null;
+  return String(v).trim() || null;
+}
+
+// "Published on": the source publication date(s), e.g. "Jul 15, 2026".
+function publishedOn(sources: RawSource[] | null): string | null {
+  if (!Array.isArray(sources)) return null;
+  const dates = sources
+    .map((s) => s.publication_date?.trim())
+    .filter((d): d is string => Boolean(d));
+  return dates.length ? [...new Set(dates)].join(", ") : null;
 }
 
 export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
@@ -131,6 +149,11 @@ export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
           base.category_slug = slug;
           base.description =
             cleanText(t.description) ?? cleanText(t.ai_summary) ?? null;
+          // Detail values are more complete than the list; override.
+          base.bid_bond = toStr(t.bid_bond) ?? base.bid_bond;
+          base.bid_document_price =
+            toStr(t.bid_document_price) ?? base.bid_document_price;
+          base.published_on = publishedOn(t.sources) ?? base.published_on;
         }
         results.push(base);
         return;
@@ -156,6 +179,9 @@ export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
           source_name: SOURCE_NAME,
           source_url: `${BASE}/tenders/${t.id}`,
           category_slug: null,
+          bid_bond: toStr(t.bid_bond),
+          bid_document_price: toStr(t.bid_document_price),
+          published_on: publishedOn(t.sources),
         };
         details.push({
           url: `${BASE}/tenders/${t.id}`,

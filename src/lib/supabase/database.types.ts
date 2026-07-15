@@ -204,6 +204,9 @@ export type Database = {
           created_by: string;
           created_at: string | null;
           published_at: string | null;
+          bid_bond: string | null;
+          bid_document_price: string | null;
+          published_on: string | null;
         };
         Insert: {
           id?: string;
@@ -220,6 +223,9 @@ export type Database = {
           created_by?: string;
           created_at?: string | null;
           published_at?: string | null;
+          bid_bond?: string | null;
+          bid_document_price?: string | null;
+          published_on?: string | null;
         };
         Update: {
           id?: string;
@@ -236,6 +242,9 @@ export type Database = {
           created_by?: string;
           created_at?: string | null;
           published_at?: string | null;
+          bid_bond?: string | null;
+          bid_document_price?: string | null;
+          published_on?: string | null;
         };
       };
       profiles: {

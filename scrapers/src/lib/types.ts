@@ -10,6 +10,9 @@ export type TenderInput = {
   deadline: string; // YYYY-MM-DD — required by the schema
   source_name: string; // legal: attribution always
   source_url: string; // legal: link back to the original notice
+  bid_bond: string | null; // e.g. "50,000" or "5% of bid price"
+  bid_document_price: string | null; // cost to obtain the bid documents
+  published_on: string | null; // source publication date, e.g. "Jul 15, 2026"
   // Our super-category slug (resolved to category_id by the upsert layer). Null
   // when the source category is missing or unmapped — admin assigns on review.
   category_slug: string | null;
