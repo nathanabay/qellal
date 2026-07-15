@@ -112,7 +112,10 @@ export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
 
   const crawler = new CheerioCrawler({
     maxConcurrency: 3,
-    maxRequestRetries: 3,
+    // 2merkato returns HTTP 429 (Retry-After ~43s) after ~168 requests in a
+    // short window. Stay well under that; Crawlee also auto-retries 429s.
+    maxRequestsPerMinute: 120,
+    maxRequestRetries: 5,
     requestHandlerTimeoutSecs: 60,
     preNavigationHooks: [
       (_ctx, gotOptions) => {
