@@ -11,7 +11,8 @@ const SOURCES: Record<string, (pages?: number) => Promise<TenderInput[]>> = {
 //   DRY_RUN=1  → extract + print, write nothing (no DB creds needed)
 async function main() {
   const which = process.argv[2] ?? "2merkato";
-  const pages = Number(process.argv[3] ?? 3) || 3;
+  // Safety cap on list pages; the source auto-stops when open tenders run out.
+  const pages = Number(process.argv[3] ?? 500) || 500;
   const dry = process.env.DRY_RUN === "1";
 
   const fn = SOURCES[which];

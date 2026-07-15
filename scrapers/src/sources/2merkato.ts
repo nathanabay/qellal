@@ -93,7 +93,13 @@ function publishedOn(sources: RawSource[] | null): string | null {
   return dates.length ? [...new Set(dates)].join(", ") : null;
 }
 
-export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
+// maxPages is a safety cap; the crawl normally auto-stops well before it once
+// open tenders run out (~300 pages). STOP_AFTER_CLOSED = how many consecutive
+// all-closed pages to see before concluding there are no more open tenders.
+export async function scrape2merkato(maxPages = 500): Promise<TenderInput[]> {
+  const STOP_AFTER_CLOSED = 5;
+  let consecutiveClosed = 0;
+  let stopped = false;
   const username = process.env.MERKATO_USERNAME;
   const password = process.env.MERKATO_PASSWORD;
 
@@ -162,12 +168,18 @@ export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
         return;
       }
 
-      // LIST page: build a partial per open tender, then enqueue its detail.
+      // LIST page: enqueue a detail request per open tender. Tenders are
+      // newest-first, so once we hit a run of all-closed pages we've passed
+      // the last open tender — auto-stop instead of crawling the dead archive.
       const list = page.props?.tenders?.data ?? [];
-      log.info(`${request.url} → ${list.length} tenders`);
+      const pageNum = Number(
+        new URL(request.url).searchParams.get("page") ?? "1",
+      );
       const details: { url: string; label: string; userData: object }[] = [];
+      let openOnPage = 0;
       for (const t of list) {
         if (t.is_open === false) continue;
+        openOnPage++;
         const title = t.title?.trim();
         const deadline = toDate(t.bid_closing_date);
         if (!title || !deadline) continue;
@@ -192,6 +204,23 @@ export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
           userData: { partial },
         });
       }
+      log.info(`page ${pageNum}: ${list.length} rows, ${openOnPage} open`);
+
+      consecutiveClosed = openOnPage === 0 ? consecutiveClosed + 1 : 0;
+      const done = consecutiveClosed >= STOP_AFTER_CLOSED;
+      if (!stopped && !done && list.length > 0 && pageNum < maxPages) {
+        // Chain the next list page (keeps list pages sequential for the
+        // auto-stop counter); enqueue it ahead of the detail backlog.
+        await addRequests(
+          [{ url: `${BASE}/tenders?status=open&page=${pageNum + 1}`, label: "list" }],
+          { forefront: true },
+        );
+      } else if (done && !stopped) {
+        stopped = true;
+        log.info(
+          `auto-stop at page ${pageNum}: ${STOP_AFTER_CLOSED} consecutive pages with no open tenders — reached the end of open tenders.`,
+        );
+      }
       await addRequests(details);
     },
     failedRequestHandler({ request, log }) {
@@ -199,11 +228,8 @@ export async function scrape2merkato(maxPages = 3): Promise<TenderInput[]> {
     },
   });
 
-  const urls = Array.from(
-    { length: maxPages },
-    (_, i) => `${BASE}/tenders?status=open&page=${i + 1}`,
-  );
-  await crawler.run(urls);
+  // Start at page 1; each list page chains the next until open tenders run out.
+  await crawler.run([`${BASE}/tenders?status=open&page=1`]);
 
   if (unmapped.size > 0) {
     console.log(
