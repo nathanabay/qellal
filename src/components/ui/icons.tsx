@@ -62,6 +62,14 @@ export function CheckCircleIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+export function UsersIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.13a9.38 9.38 0 0 0 2.63.37 9.34 9.34 0 0 0 4.12-.95 4.13 4.13 0 0 0-7.53-2.5M15 19.13v-.01c0-1.11-.29-2.16-.79-3.07M15 19.13v.1A12.3 12.3 0 0 1 8.62 21c-2.33 0-4.51-.65-6.37-1.77v-.11a6.38 6.38 0 0 1 11.96-3.07M12 6.38a3.38 3.38 0 1 1-6.75 0 3.38 3.38 0 0 1 6.75 0Zm8.25 2.25a2.63 2.63 0 1 1-5.25 0 2.63 2.63 0 0 1 5.25 0Z" />
+    </svg>
+  );
+}
+
 export function SpinnerIcon({ className = "h-4 w-4" }: IconProps) {
   return (
     <svg className={`${className} animate-spin`} viewBox="0 0 24 24" fill="none" aria-hidden="true">

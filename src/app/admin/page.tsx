@@ -9,10 +9,10 @@ import { formatDate, daysLeft } from "@/lib/format";
 import { publishTender, rejectTender, createTender } from "./actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import {
-  InboxIcon,
   DocumentIcon,
   TagIcon,
   CheckCircleIcon,
+  InboxIcon,
 } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
@@ -70,7 +70,7 @@ function RowActions({ id }: { id: string }) {
 }
 
 export default async function AdminPage() {
-  const { supabase, role } = await requireStaff();
+  const { supabase } = await requireStaff();
 
   const [pendingRes, publishedCount, totalRes, categories, regions] =
     await Promise.all([
@@ -100,41 +100,8 @@ export default async function AdminPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 lg:py-8">
-      <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-6">
-        {/* Sidebar (ProLayout-style) */}
-        <aside className="mb-5 lg:mb-0">
-          <nav className="rounded-xl border border-border bg-surface p-2 text-sm lg:sticky lg:top-20">
-            <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">
-              Admin · {role}
-            </p>
-            <a
-              href="#review"
-              className="flex min-h-11 items-center gap-2 rounded-lg bg-primary-soft px-3 font-medium text-primary"
-            >
-              <InboxIcon />
-              Review queue
-            </a>
-            <a
-              href="#add"
-              className="flex min-h-11 items-center gap-2 rounded-lg px-3 font-medium text-muted hover:bg-primary-soft hover:text-primary"
-            >
-              <DocumentIcon />
-              Add tender
-            </a>
-            <div className="my-2 border-t border-border" />
-            <Link
-              href="/tenders"
-              className="flex min-h-11 items-center gap-2 rounded-lg px-3 font-medium text-muted hover:bg-primary-soft hover:text-primary"
-            >
-              View site
-            </Link>
-          </nav>
-        </aside>
-
-        {/* Content */}
-        <div className="min-w-0">
-          {/* Page header + breadcrumb */}
+    <>
+      {/* Page header + breadcrumb */}
           <div className="mb-5">
             <nav className="text-xs text-muted" aria-label="Breadcrumb">
               <Link href="/" className="hover:text-primary">
@@ -333,8 +300,6 @@ export default async function AdminPage() {
               <SubmitButton pendingText="Publishing…">Publish tender</SubmitButton>
             </form>
           </section>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
