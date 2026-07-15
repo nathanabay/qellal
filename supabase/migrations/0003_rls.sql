@@ -3,6 +3,16 @@
 -- The service role key bypasses RLS entirely — that's how scrapers and the
 -- notification job write rows. These policies govern anon + logged-in users only.
 
+-- ---------- categories ----------
+-- Public reference data (used in filters + joins). Everyone can read;
+-- only the service role writes them (seed / admin). Supabase auto-enables RLS on
+-- new public tables, so without this policy categories would be invisible to the app.
+alter table categories enable row level security;
+
+drop policy if exists categories_public_read on categories;
+create policy categories_public_read on categories
+  for select using (true);
+
 -- ---------- tenders ----------
 alter table tenders enable row level security;
 
