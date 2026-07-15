@@ -14,8 +14,11 @@ the Supabase SQL editor (no Supabase CLI = one less dependency during MVP).
    1. `migrations/0001_schema.sql` — tables + indexes
    2. `migrations/0002_functions_triggers.sql` — role helper + auto-create-profile trigger
    3. `migrations/0003_rls.sql` — enable RLS + policies
+   4. `migrations/0004_seed.sql` — **dev only**: 10 categories + 20 fake tenders
 
    Order matters: 0003's policies depend on the `current_user_role()` function from 0002.
+   `0004_seed.sql` is safe to re-run (it wipes prior `created_by='seed'` rows first) and
+   is only for local development — delete those rows before going live.
 
 3. **Copy the keys into `.env.local`** (Project → Settings → API):
    ```
