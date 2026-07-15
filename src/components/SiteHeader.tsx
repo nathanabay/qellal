@@ -29,7 +29,7 @@ export async function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Link
           href="/"
-          className="flex min-h-11 items-center gap-2 font-bold tracking-tight text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="flex min-h-11 items-center gap-2 font-heading text-lg font-bold tracking-tight text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-primary" />
           Qellal

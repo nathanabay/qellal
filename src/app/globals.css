@@ -1,65 +1,83 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Design tokens — three layers (per the design-system skill):
-   1. Primitives : raw brand values. Never used directly in components.
-   2. Semantic   : purpose aliases, exposed to Tailwind as utilities.
-   Brand: Trust Blue + Amber (deadline-forward).
+   Design tokens — "Trust & Authority" (enterprise/government procurement).
+   Professional navy + deep-blue CTA. Lexend headings / Source Sans 3 body.
 --------------------------------------------------------------------------- */
 
 /* Layer 1 — primitives */
 :root {
-  --blue-50: #eff6ff;
-  --blue-700: #1d4ed8;
-  --blue-800: #1e40af;
+  --blue-50: #e0f2fe; /* soft tint */
+  --blue-700: #0369a1; /* CTA / links */
+  --blue-800: #075985; /* CTA hover */
+
+  --navy-900: #0f172a; /* ink + dark surfaces */
+  --navy-800: #1e293b;
 
   --amber-100: #fef3c7;
   --amber-700: #b45309;
-
   --red-100: #fee2e2;
-  --red-600: #dc2626;
   --red-700: #b91c1c;
 
-  --slate-50: #f8fafc;
-  --slate-200: #e2e8f0;
-  --slate-500: #64748b;
-  --slate-900: #0f172a;
+  --slate-50: #f8fafc; /* canvas */
+  --slate-100: #eef2f7;
+  --slate-200: #e2e8f0; /* border */
+  --slate-300: #cbd5e1;
+  --slate-600: #475569; /* muted text */
 }
 
-/* Layer 2 — semantic tokens → generate utilities (bg-primary, text-urgent, …) */
+/* Layer 2 — semantic tokens → Tailwind utilities */
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-source);
+  --font-heading: var(--font-lexend);
 
   --color-primary: var(--blue-700);
   --color-primary-hover: var(--blue-800);
   --color-primary-soft: var(--blue-50);
 
-  --color-urgent: var(--red-700);       /* deadline ≤ 3 days — red-700 for WCAG AA on soft bg */
+  --color-urgent: var(--red-700); /* deadline ≤ 3 days */
   --color-urgent-soft: var(--red-100);
-  --color-warn: var(--amber-700);       /* deadline ≤ 7 days */
+  --color-warn: var(--amber-700); /* deadline ≤ 7 days */
   --color-warn-soft: var(--amber-100);
 
-  --color-canvas: var(--slate-50);      /* page background */
-  --color-surface: #ffffff;             /* cards */
+  --color-canvas: var(--slate-50);
+  --color-surface: #ffffff;
   --color-border: var(--slate-200);
-  --color-ink: var(--slate-900);        /* primary text */
-  --color-muted: var(--slate-500);      /* secondary text */
+  --color-ink: var(--navy-900);
+  --color-muted: var(--slate-600);
+
+  --color-navy: var(--navy-900); /* dark bands / footer */
+  --color-navy-soft: var(--navy-800);
+  --color-hairline: var(--slate-100);
+
+  /* Elevation scale (soft, cool-tinted) */
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-lift: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.05);
 }
 
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Interactive affordance: enabled buttons show the pointer cursor. */
+/* Headings use the display font with tighter tracking. */
+h1,
+h2,
+h3,
+.font-heading {
+  font-family: var(--font-heading), var(--font-sans), system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Interactive affordance. */
 button:not(:disabled),
 [role="button"] {
   cursor: pointer;
 }
 
-/* Respect users who prefer reduced motion — kill transitions/animations. */
+/* Respect reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
