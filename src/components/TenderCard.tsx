@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { daysLeft, formatDate } from "@/lib/format";
 import { toggleSaveTender } from "@/app/tenders/actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
+import { StarIcon } from "@/components/ui/icons";
 
 export type TenderCardData = {
   id: string;
@@ -83,16 +85,14 @@ export function TenderCard({
         <form action={toggleSaveTender} className="relative z-10 mt-3">
           <input type="hidden" name="tender_id" value={tender.id} />
           <input type="hidden" name="saved" value={saved ? "1" : "0"} />
-          <button
-            type="submit"
-            className={`rounded-lg border px-2.5 py-1 text-xs font-medium ${
-              saved
-                ? "border-primary bg-primary-soft text-primary"
-                : "border-border text-muted hover:bg-primary-soft hover:text-primary"
-            }`}
+          <SubmitButton
+            variant="secondary"
+            className={saved ? "border-primary bg-primary-soft text-primary" : ""}
+            aria-label={saved ? "Remove from saved" : "Save tender"}
           >
-            {saved ? "★ Saved" : "☆ Save"}
-          </button>
+            <StarIcon filled={saved} />
+            {saved ? "Saved" : "Save"}
+          </SubmitButton>
         </form>
       )}
     </div>

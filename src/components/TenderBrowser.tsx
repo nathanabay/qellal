@@ -7,6 +7,8 @@ import { TenderFilters, type FilterState } from "./TenderFilters";
 import type { Category } from "@/lib/tenders";
 import { daysLeft } from "@/lib/format";
 import { createAlertFromSearch } from "@/app/tenders/actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
+import { BellIcon } from "@/components/ui/icons";
 
 // F11: filters the already-loaded list instantly (no server round-trip per tweak),
 // while syncing to the URL so results stay shareable. SSR still renders the initial
@@ -95,7 +97,7 @@ export function TenderBrowser({
               onClick={() =>
                 setF({ q: "", category: "", region: "", deadline: "" })
               }
-              className="text-sm font-medium text-primary hover:text-primary-hover"
+              className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-primary hover:bg-primary-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               Clear
             </button>
@@ -107,17 +109,15 @@ export function TenderBrowser({
                 <input type="hidden" name="q" value={f.q} />
                 <input type="hidden" name="category" value={f.category} />
                 <input type="hidden" name="region" value={f.region} />
-                <button
-                  type="submit"
-                  className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-hover"
-                >
-                  🔔 Get alerts for this search
-                </button>
+                <SubmitButton pendingText="Saving…">
+                  <BellIcon />
+                  Get alerts for this search
+                </SubmitButton>
               </form>
             ) : (
               <a
                 href="/login"
-                className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary-soft"
+                className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm font-medium text-primary hover:bg-primary-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Sign in to get alerts
               </a>

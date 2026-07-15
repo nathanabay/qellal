@@ -3,16 +3,16 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signup, type AuthState } from "@/app/auth/actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary";
-const btnClass =
-  "w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-60";
 
 const initial: AuthState = {};
 
 export default function SignupPage() {
-  const [state, action, pending] = useActionState(signup, initial);
+  const [state, action] = useActionState(signup, initial);
 
   return (
     <main className="mx-auto w-full max-w-sm px-4 py-12">
@@ -32,6 +32,7 @@ export default function SignupPage() {
           <input
             name="full_name"
             type="text"
+            autoComplete="name"
             placeholder="Full name (optional)"
             className={inputClass}
             aria-label="Full name"
@@ -39,6 +40,7 @@ export default function SignupPage() {
           <input
             name="company_name"
             type="text"
+            autoComplete="organization"
             placeholder="Company / organisation (optional)"
             className={inputClass}
             aria-label="Company or organisation"
@@ -47,23 +49,28 @@ export default function SignupPage() {
             name="email"
             type="email"
             required
+            autoComplete="email"
             placeholder="you@example.com"
             className={inputClass}
             aria-label="Email"
           />
-          <input
+          <PasswordInput
             name="password"
-            type="password"
             required
             minLength={8}
+            autoComplete="new-password"
             placeholder="Password (min 8 characters)"
             className={inputClass}
             aria-label="Password"
           />
-          {state.error && <p className="text-sm text-urgent">{state.error}</p>}
-          <button type="submit" disabled={pending} className={btnClass}>
-            {pending ? "Creating account…" : "Create account"}
-          </button>
+          {state.error && (
+            <p role="alert" className="text-sm text-urgent">
+              {state.error}
+            </p>
+          )}
+          <SubmitButton pendingText="Creating account…" className="w-full">
+            Create account
+          </SubmitButton>
         </form>
       )}
 

@@ -4,6 +4,8 @@ import { getProfile, getSubscriptions } from "@/lib/account";
 import { getSavedTenders } from "@/lib/saved";
 import { getCategories, getDistinctRegions } from "@/lib/tenders";
 import { TenderCard } from "@/components/TenderCard";
+import { SubmitButton } from "@/components/ui/SubmitButton";
+import { CheckIcon } from "@/components/ui/icons";
 import {
   updateNotificationPrefs,
   addSubscription,
@@ -16,8 +18,6 @@ export const metadata = { title: "Your alerts — Qellal" };
 
 const inputClass =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted";
-const btnClass =
-  "rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover";
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -83,9 +83,7 @@ export default async function AccountPage() {
             Telegram notifications
             <span className="text-xs text-muted">(connect coming soon)</span>
           </label>
-          <button type="submit" className={btnClass}>
-            Save preferences
-          </button>
+          <SubmitButton pendingText="Saving…">Save preferences</SubmitButton>
         </form>
 
         {/* Pause controls (F7) */}
@@ -103,9 +101,9 @@ export default async function AccountPage() {
                   </p>
                   <form action={setNotificationPause}>
                     <input type="hidden" name="days" value="0" />
-                    <button type="submit" className="text-sm font-medium text-primary hover:text-primary-hover">
+                    <SubmitButton variant="ghost" className="text-primary">
                       Resume now
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               ) : (
@@ -113,15 +111,15 @@ export default async function AccountPage() {
                   <span>Getting too many? Pause alerts:</span>
                   <form action={setNotificationPause}>
                     <input type="hidden" name="days" value="1" />
-                    <button type="submit" className="rounded-lg border border-border px-2.5 py-1 font-medium text-ink hover:bg-primary-soft">
+                    <SubmitButton variant="secondary" className="px-3">
                       24 hours
-                    </button>
+                    </SubmitButton>
                   </form>
                   <form action={setNotificationPause}>
                     <input type="hidden" name="days" value="7" />
-                    <button type="submit" className="rounded-lg border border-border px-2.5 py-1 font-medium text-ink hover:bg-primary-soft">
+                    <SubmitButton variant="secondary" className="px-3">
                       7 days
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               )}
@@ -136,8 +134,9 @@ export default async function AccountPage() {
           Telegram
         </h2>
         {profile?.telegram_chat_id ? (
-          <p className="mt-2 text-sm text-ink">
-            ✅ Telegram connected. Send <code className="font-mono">/stop</code> in
+          <p className="mt-2 flex items-center gap-2 text-sm text-ink">
+            <CheckIcon className="h-4 w-4 text-primary" />
+            Telegram connected. Send <code className="font-mono">/stop</code> in
             the chat to unsubscribe.
           </p>
         ) : process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME && profile ? (
@@ -149,7 +148,7 @@ export default async function AccountPage() {
               href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME}?start=${profile.telegram_link_token}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
+              className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               Connect Telegram
             </a>
@@ -188,12 +187,9 @@ export default async function AccountPage() {
                   <span className="text-ink">{parts.join(" · ")}</span>
                   <form action={removeSubscription}>
                     <input type="hidden" name="id" value={s.id} />
-                    <button
-                      type="submit"
-                      className="text-xs font-medium text-urgent hover:underline"
-                    >
+                    <SubmitButton variant="danger" className="px-3">
                       Remove
-                    </button>
+                    </SubmitButton>
                   </form>
                 </li>
               );
@@ -229,9 +225,7 @@ export default async function AccountPage() {
             aria-label="Keyword"
           />
           <div className="sm:col-span-3">
-            <button type="submit" className={btnClass}>
-              Add alert
-            </button>
+            <SubmitButton pendingText="Adding…">Add alert</SubmitButton>
           </div>
         </form>
       </section>
@@ -242,7 +236,8 @@ export default async function AccountPage() {
         </h2>
         {saved.length === 0 ? (
           <p className="mt-3 text-sm text-muted">
-            No saved tenders yet. Tap “☆ Save” on any tender to keep it here.
+            No saved tenders yet. Tap the “Save” button on any tender to keep it
+            here.
           </p>
         ) : (
           <ul className="mt-3 space-y-3">

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
+import { NavLink } from "@/components/ui/NavLink";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 async function getHeaderUser(): Promise<{ email: string | null; isStaff: boolean }> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return { email: null, isStaff: false };
@@ -27,52 +29,32 @@ export async function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Link
           href="/"
-          className="flex items-center gap-2 font-bold tracking-tight text-ink"
+          className="flex min-h-11 items-center gap-2 font-bold tracking-tight text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-primary" />
           Qellal
         </Link>
 
-        <nav className="flex items-center gap-2 text-sm">
-          <Link
-            href="/tenders"
-            className="rounded-lg px-3 py-1.5 font-medium text-muted hover:bg-primary-soft hover:text-primary"
-          >
-            Browse tenders
-          </Link>
+        <nav className="flex items-center gap-1 text-sm">
+          <NavLink href="/tenders">Browse tenders</NavLink>
 
           {email ? (
             <>
-              {isStaff && (
-                <Link
-                  href="/admin"
-                  className="rounded-lg px-3 py-1.5 font-medium text-muted hover:bg-primary-soft hover:text-primary"
-                >
-                  Admin
-                </Link>
-              )}
-              <Link
-                href="/account"
-                className="rounded-lg px-3 py-1.5 font-medium text-muted hover:bg-primary-soft hover:text-primary"
-              >
-                My alerts
-              </Link>
+              {isStaff && <NavLink href="/admin">Admin</NavLink>}
+              <NavLink href="/account">My alerts</NavLink>
               <span className="hidden text-muted sm:inline" title={email}>
                 {email}
               </span>
               <form action={signOut}>
-                <button
-                  type="submit"
-                  className="rounded-lg px-3 py-1.5 font-medium text-muted hover:bg-primary-soft hover:text-primary"
-                >
+                <SubmitButton variant="ghost" pendingText="Signing out…">
                   Sign out
-                </button>
+                </SubmitButton>
               </form>
             </>
           ) : (
             <Link
               href="/login"
-              className="rounded-lg bg-primary px-3 py-1.5 font-medium text-white hover:bg-primary-hover"
+              className="inline-flex min-h-11 items-center rounded-lg bg-primary px-3 font-medium text-white hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               Sign in
             </Link>

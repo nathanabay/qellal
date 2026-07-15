@@ -3,19 +3,15 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { requestPasswordReset, type AuthState } from "@/app/auth/actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary";
-const btnClass =
-  "w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-60";
 
 const initial: AuthState = {};
 
 export default function ResetPage() {
-  const [state, action, pending] = useActionState(
-    requestPasswordReset,
-    initial,
-  );
+  const [state, action] = useActionState(requestPasswordReset, initial);
 
   return (
     <main className="mx-auto w-full max-w-sm px-4 py-12">
@@ -36,14 +32,19 @@ export default function ResetPage() {
             name="email"
             type="email"
             required
+            autoComplete="email"
             placeholder="you@example.com"
             className={inputClass}
             aria-label="Email"
           />
-          {state.error && <p className="text-sm text-urgent">{state.error}</p>}
-          <button type="submit" disabled={pending} className={btnClass}>
-            {pending ? "Sending…" : "Send reset link"}
-          </button>
+          {state.error && (
+            <p role="alert" className="text-sm text-urgent">
+              {state.error}
+            </p>
+          )}
+          <SubmitButton pendingText="Sending…" className="w-full">
+            Send reset link
+          </SubmitButton>
         </form>
       )}
 

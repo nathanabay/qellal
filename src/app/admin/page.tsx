@@ -2,6 +2,7 @@ import { requireStaff } from "@/lib/auth-guard";
 import { getCategories, getDistinctRegions } from "@/lib/tenders";
 import { formatDate } from "@/lib/format";
 import { publishTender, rejectTender, createTender } from "./actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin — Qellal" };
@@ -18,8 +19,6 @@ type PendingRow = {
 
 const inputClass =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted";
-const primaryBtn =
-  "rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-hover";
 
 export default async function AdminPage() {
   const { supabase, role } = await requireStaff();
@@ -74,18 +73,11 @@ export default async function AdminPage() {
               <div className="mt-3 flex gap-2">
                 <form action={publishTender}>
                   <input type="hidden" name="id" value={t.id} />
-                  <button type="submit" className={primaryBtn}>
-                    Publish
-                  </button>
+                  <SubmitButton pendingText="Publishing…">Publish</SubmitButton>
                 </form>
                 <form action={rejectTender}>
                   <input type="hidden" name="id" value={t.id} />
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-urgent hover:bg-urgent-soft"
-                  >
-                    Reject
-                  </button>
+                  <SubmitButton variant="danger">Reject</SubmitButton>
                 </form>
               </div>
             </li>
@@ -165,9 +157,7 @@ export default async function AdminPage() {
               className={inputClass}
             />
           </div>
-          <button type="submit" className={primaryBtn}>
-            Publish tender
-          </button>
+          <SubmitButton pendingText="Publishing…">Publish tender</SubmitButton>
         </form>
       </section>
     </main>

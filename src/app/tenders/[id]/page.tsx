@@ -5,6 +5,8 @@ import { getTenderById, getCategories } from "@/lib/tenders";
 import { daysLeft, formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { toggleSaveTender } from "@/app/tenders/actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
+import { StarIcon } from "@/components/ui/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -98,21 +100,19 @@ export default async function TenderDetailPage({
           <form action={toggleSaveTender} className="ml-auto">
             <input type="hidden" name="tender_id" value={tender.id} />
             <input type="hidden" name="saved" value={saved ? "1" : "0"} />
-            <button
-              type="submit"
-              className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
-                saved
-                  ? "border-primary bg-primary-soft text-primary"
-                  : "border-border text-muted hover:bg-primary-soft hover:text-primary"
-              }`}
+            <SubmitButton
+              variant="secondary"
+              className={saved ? "border-primary bg-primary-soft text-primary" : ""}
+              aria-label={saved ? "Remove from saved" : "Save tender"}
             >
-              {saved ? "★ Saved" : "☆ Save"}
-            </button>
+              <StarIcon filled={saved} />
+              {saved ? "Saved" : "Save"}
+            </SubmitButton>
           </form>
         ) : (
           <Link
             href="/login"
-            className="ml-auto text-sm font-medium text-primary hover:text-primary-hover"
+            className="ml-auto inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-primary hover:bg-primary-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             Sign in to save
           </Link>

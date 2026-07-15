@@ -52,3 +52,21 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Interactive affordance: enabled buttons show the pointer cursor. */
+button:not(:disabled),
+[role="button"] {
+  cursor: pointer;
+}
+
+/* Respect users who prefer reduced motion — kill transitions/animations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
