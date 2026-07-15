@@ -1,5 +1,5 @@
-// Deadline-forward tender card. Uses semantic design tokens only (no raw hex).
-// Not a link yet — becomes one once the /tenders/[id] detail page exists.
+import Link from "next/link";
+import { daysLeft, formatDate } from "@/lib/format";
 
 export type TenderCardData = {
   id: string;
@@ -9,18 +9,6 @@ export type TenderCardData = {
   source_name: string;
   publishing_entity: string | null;
 };
-
-function daysLeft(deadline: string): number {
-  return Math.ceil((new Date(deadline).getTime() - Date.now()) / 86_400_000);
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 export function TenderCard({ tender }: { tender: TenderCardData }) {
   const d = daysLeft(tender.deadline);
@@ -34,7 +22,10 @@ export function TenderCard({ tender }: { tender: TenderCardData }) {
         : "bg-primary-soft text-primary";
 
   return (
-    <article className="rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md">
+    <Link
+      href={`/tenders/${tender.id}`}
+      className="block rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
       <div className="flex items-start justify-between gap-3">
         <h2 className="font-semibold leading-snug text-ink">{tender.title}</h2>
         <span
@@ -58,6 +49,6 @@ export function TenderCard({ tender }: { tender: TenderCardData }) {
         </span>
         <span>Source: {tender.source_name}</span>
       </div>
-    </article>
+    </Link>
   );
 }

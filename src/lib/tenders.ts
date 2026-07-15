@@ -82,6 +82,41 @@ export async function getPublishedTenderCount(): Promise<number | null> {
   return count ?? 0;
 }
 
+export type TenderDetail = {
+  id: string;
+  title: string;
+  description: string | null;
+  category_id: number | null;
+  region: string | null;
+  publishing_entity: string | null;
+  published_date: string | null;
+  deadline: string;
+  source_name: string;
+  source_url: string | null;
+};
+
+// Single published tender by id. Returns null if missing, unpublished, or the
+// id isn't a valid uuid (Postgres errors on bad uuid → treated as not found).
+export async function getTenderById(id: string): Promise<TenderDetail | null> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tenders")
+    .select(
+      "id,title,description,category_id,region,publishing_entity,published_date,deadline,source_name,source_url",
+    )
+    .eq("id", id)
+    .eq("status", "published")
+    .maybeSingle();
+
+  if (error) {
+    console.error("tender fetch failed:", error.message);
+    return null;
+  }
+  return data;
+}
+
 export async function getCategories(): Promise<Category[]> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
 
