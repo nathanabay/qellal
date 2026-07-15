@@ -7,6 +7,7 @@ import { TenderCard } from "@/components/TenderCard";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { CheckIcon } from "@/components/ui/icons";
 import { getBillingSubscription } from "@/lib/billing";
+import { getUserInvoices } from "@/lib/invoicing";
 import { getPlan } from "@/lib/plans";
 import { formatDate } from "@/lib/format";
 import {
@@ -36,7 +37,7 @@ export default async function AccountPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [profile, subs, categories, regions, saved, billing] =
+  const [profile, subs, categories, regions, saved, billing, invoices] =
     await Promise.all([
       getProfile(),
       getSubscriptions(),
@@ -44,6 +45,7 @@ export default async function AccountPage() {
       getDistinctRegions(),
       getSavedTenders(),
       getBillingSubscription(),
+      getUserInvoices(),
     ]);
 
   const status = billing?.status ?? null;
@@ -152,6 +154,44 @@ export default async function AccountPage() {
           Test mode — no real charge. Payments connect later via Chapa/Telebirr.
         </p>
       </section>
+
+      {/* Invoices (Slice 3) */}
+      {invoices.length > 0 && (
+        <section className="mb-6 rounded-xl border border-border bg-surface p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Invoices
+          </h2>
+          <ul className="mt-3 divide-y divide-border">
+            {invoices.map((inv) => (
+              <li key={inv.id} className="py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-ink">{inv.number}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        inv.status === "paid"
+                          ? "bg-primary-soft text-primary"
+                          : inv.status === "credit"
+                            ? "bg-warn-soft text-warn"
+                            : "bg-canvas text-muted"
+                      }`}
+                    >
+                      {inv.status}
+                    </span>
+                  </div>
+                  <span className="font-semibold tabular-nums text-ink">
+                    {inv.currency} {inv.total.toFixed(2)}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted">
+                  {inv.created_at ? formatDate(inv.created_at) : ""} ·{" "}
+                  {inv.lines.map((l) => l.description).join(", ")}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Notification channels */}
       <section className="rounded-xl border border-border bg-surface p-4">
