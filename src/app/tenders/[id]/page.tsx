@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { getTenderById, getCategories } from "@/lib/tenders";
+import { getSimilarTenders } from "@/lib/insights";
 import { daysLeft, formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { toggleSaveTender } from "@/app/tenders/actions";
+import { TenderCard } from "@/components/TenderCard";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { StarIcon } from "@/components/ui/icons";
 
@@ -46,7 +48,10 @@ export default async function TenderDetailPage({
     saved = Boolean(data);
   }
 
-  const categories = await getCategories();
+  const [categories, similar] = await Promise.all([
+    getCategories(),
+    getSimilarTenders(tender.category_id, tender.id, 4),
+  ]);
   const categoryName =
     tender.category_id != null
       ? (categories.find((c) => c.id === tender.category_id)?.name ?? null)
@@ -110,9 +115,12 @@ export default async function TenderDetailPage({
           {tender.publishing_entity && (
             <p className="mt-3 text-sm text-muted">
               Published by{" "}
-              <span className="font-medium text-ink">
+              <Link
+                href={`/entities/${encodeURIComponent(tender.publishing_entity)}`}
+                className="font-medium text-primary hover:underline"
+              >
                 {tender.publishing_entity}
-              </span>
+              </Link>
             </p>
           )}
 
@@ -159,6 +167,22 @@ export default async function TenderDetailPage({
               )}
             </div>
           </section>
+
+          {/* Similar past tenders (market intelligence) */}
+          {similar.length > 0 && (
+            <section className="mt-8">
+              <h2 className="font-heading text-lg font-semibold text-ink">
+                Similar tenders
+              </h2>
+              <ul className="mt-3 space-y-3">
+                {similar.map((t) => (
+                  <li key={t.id}>
+                    <TenderCard tender={t} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <div className="mt-8">
             <Link

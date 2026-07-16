@@ -51,6 +51,12 @@ export default async function TendersPage() {
           >
             Browse by region
           </a>
+          <a
+            href="/insights"
+            className="inline-flex min-h-9 items-center rounded-lg border border-border px-3 font-medium text-primary hover:bg-primary-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Insights
+          </a>
         </nav>
       </header>
 
