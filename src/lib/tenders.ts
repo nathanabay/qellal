@@ -17,6 +17,8 @@ export type TenderFilters = {
   categoryId?: number;
   region?: string;
   deadlineInDays?: number; // deadline within N days from today
+  openOnly?: boolean; // deadline not yet passed
+  closedOnly?: boolean; // deadline passed
 };
 
 type GetOptions = {
@@ -37,37 +39,54 @@ export async function getPublishedTenders(
   }
 
   const supabase = await createClient();
-  let query = supabase
-    .from("tenders")
-    .select(COLUMNS)
-    .eq("status", "published");
-
   const f = opts.filters ?? {};
-  if (f.q) query = query.ilike("title", `%${f.q}%`);
-  if (f.categoryId) query = query.eq("category_id", f.categoryId);
-  if (f.region) query = query.eq("region", f.region);
-  if (f.deadlineInDays) {
-    const cutoff = new Date(Date.now() + f.deadlineInDays * 86_400_000)
-      .toISOString()
-      .slice(0, 10);
-    query = query.lte("deadline", cutoff);
+
+  // Build a fresh, identically-ordered query per range fetch. A stable id
+  // tiebreaker keeps ranges from skipping/duplicating rows across chunks.
+  const today = new Date().toISOString().slice(0, 10);
+  const build = () => {
+    let query = supabase
+      .from("tenders")
+      .select(COLUMNS)
+      .eq("status", "published");
+    if (f.openOnly) query = query.gte("deadline", today);
+    if (f.closedOnly) query = query.lt("deadline", today);
+    if (f.q) query = query.ilike("title", `%${f.q}%`);
+    if (f.categoryId) query = query.eq("category_id", f.categoryId);
+    if (f.region) query = query.eq("region", f.region);
+    if (f.deadlineInDays) {
+      const cutoff = new Date(Date.now() + f.deadlineInDays * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+      query = query.lte("deadline", cutoff);
+    }
+    query =
+      opts.sort === "deadline"
+        ? query.order("deadline", { ascending: true })
+        : query.order("published_date", { ascending: false });
+    return query.order("id", { ascending: true });
+  };
+
+  // PostgREST caps every response at 1000 rows, so page through in chunks up to
+  // the requested limit to actually load the whole set.
+  const hardLimit = opts.limit ?? 1000;
+  const CHUNK = 1000;
+  const rawAll: unknown[] = [];
+  for (let from = 0; from < hardLimit; from += CHUNK) {
+    const to = Math.min(from + CHUNK, hardLimit) - 1;
+    const { data, error } = await build().range(from, to);
+    if (error) {
+      console.error("tenders fetch failed:", error.message);
+      return { state: "error", message: error.message };
+    }
+    const batch = data ?? [];
+    rawAll.push(...batch);
+    if (batch.length < CHUNK) break; // reached the end
   }
 
-  query =
-    opts.sort === "deadline"
-      ? query.order("deadline", { ascending: true })
-      : query.order("published_date", { ascending: false });
-
-  if (opts.limit) query = query.limit(opts.limit);
-
-  const { data, error } = await query;
-  if (error) {
-    console.error("tenders fetch failed:", error.message);
-    return { state: "error", message: error.message };
-  }
   // Flatten the nested join into a category_ids array so the client can filter
   // by ANY of a tender's categories, not just its primary one.
-  const rows = (data ?? []) as unknown as Array<
+  const rows = rawAll as Array<
     Record<string, unknown> & {
       category_id: number | null;
       tender_categories?: { category_id: number }[] | null;

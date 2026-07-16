@@ -15,13 +15,27 @@ export const metadata = {
 };
 
 export default async function TendersPage() {
-  // Cap the client payload so the page stays fast on 3G even as the archive
-  // grows; deep-archive browsing goes through the sector/region hubs.
-  const [result, categories, regions] = await Promise.all([
-    getPublishedTenders({ sort: "recent", limit: 1500 }),
+  // Load ALL open tenders (the deadline-relevant set, bounded) so none are
+  // missed, plus the most-recent closed ones for the archive toggle. Both
+  // batch past PostgREST's 1000-row cap. The deep closed archive is reachable
+  // via the sector/region hubs and Insights. (A much larger open set would want
+  // true server-side pagination.)
+  const [openRes, closedRes, categories, regions] = await Promise.all([
+    getPublishedTenders({ filters: { openOnly: true }, sort: "deadline", limit: 5000 }),
+    getPublishedTenders({ filters: { closedOnly: true }, sort: "recent", limit: 1000 }),
     getCategories(),
     getDistinctRegions(),
   ]);
+  const result: typeof openRes =
+    openRes.state !== "ok"
+      ? openRes
+      : {
+          state: "ok",
+          tenders: [
+            ...openRes.tenders,
+            ...(closedRes.state === "ok" ? closedRes.tenders : []),
+          ],
+        };
 
   const supabase = await createClient();
   const {
