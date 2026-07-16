@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { entityHref } from "@/lib/entity";
 import { getTopEntities } from "@/lib/insights";
 
 // Public aggregate page; cache for an hour (data updates ~daily).
@@ -42,7 +43,7 @@ export default async function EntitiesPage() {
           {entities.map((e, i) => (
             <li key={e.entity}>
               <Link
-                href={`/entities/${encodeURIComponent(e.entity)}`}
+                href={entityHref(e.entity)}
                 className="block rounded-xl border border-border bg-surface p-3 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <div className="flex items-center justify-between gap-3">

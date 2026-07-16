@@ -2,17 +2,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEntityProfile } from "@/lib/insights";
 import { getCategories } from "@/lib/tenders";
+import { entityFromParam } from "@/lib/entity";
 import { TenderCard } from "@/components/TenderCard";
 import { daysLeft } from "@/lib/format";
 
 // Public aggregate page; cache for an hour (data updates ~daily).
 export const revalidate = 3600;
 
-type Params = Promise<{ entity: string }>;
+// Catch-all so entity names containing "/" (common: "F/E/D/Bureau") don't 404.
+type Params = Promise<{ entity: string[] }>;
 
 export async function generateMetadata({ params }: { params: Params }) {
   const { entity } = await params;
-  const name = decodeURIComponent(entity);
+  const name = entityFromParam(entity);
   return {
     title: `${name} — tenders & activity — Qellal`,
     description: `Tenders published by ${name}, with sector and region breakdown.`,
@@ -21,7 +23,7 @@ export async function generateMetadata({ params }: { params: Params }) {
 
 export default async function EntityPage({ params }: { params: Params }) {
   const { entity } = await params;
-  const name = decodeURIComponent(entity);
+  const name = entityFromParam(entity);
   const [profile, categories] = await Promise.all([
     getEntityProfile(name),
     getCategories(),

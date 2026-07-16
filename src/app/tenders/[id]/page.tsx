@@ -4,6 +4,7 @@ import { cache } from "react";
 import { getTenderById, getTenderCategories } from "@/lib/tenders";
 import { getSimilarTenders } from "@/lib/insights";
 import { daysLeft, formatDate } from "@/lib/format";
+import { entityHref } from "@/lib/entity";
 import { createClient } from "@/lib/supabase/server";
 import { toggleSaveTender } from "@/app/tenders/actions";
 import { TenderCard } from "@/components/TenderCard";
@@ -123,7 +124,7 @@ export default async function TenderDetailPage({
             <p className="mt-3 text-sm text-muted">
               Published by{" "}
               <Link
-                href={`/entities/${encodeURIComponent(tender.publishing_entity)}`}
+                href={entityHref(tender.publishing_entity)}
                 className="font-medium text-primary hover:underline"
               >
                 {tender.publishing_entity}

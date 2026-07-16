@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { entityHref } from "@/lib/entity";
 import { getMonthlyActivity, getTopEntities } from "@/lib/insights";
 import { getCategories, getOpenTenderFacetCounts } from "@/lib/tenders";
 
@@ -119,7 +120,7 @@ export default async function InsightsPage() {
           {entities.map((e) => (
             <li key={e.entity} className="flex justify-between gap-3">
               <Link
-                href={`/entities/${encodeURIComponent(e.entity)}`}
+                href={entityHref(e.entity)}
                 className="min-w-0 truncate text-ink hover:text-primary"
               >
                 {e.entity}
