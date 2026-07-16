@@ -15,10 +15,13 @@
   --sand-200: #D8D2C4;   /* border */
   --sand-600: #6B6459;   /* muted text */
 
-  --signal-500:  #E8462F; /* time ≤ 3 days — nothing else */
+  --signal-500:  #E8462F; /* time ≤ 3 days (and past-due) */
   --signal-100:  #F7DDD6;
   --caution-500: #C8801D; /* time ≤ 7 days */
   --caution-100: #F0E3CB;
+
+  --ok-700: #1A7A3C;      /* "paid" / success only */
+  --ok-100: #DCEFE1;
 }
 
 /* Layer 2 — semantic tokens → Tailwind utilities */
@@ -35,6 +38,9 @@
   --color-urgent-soft: var(--signal-100);
   --color-warn:        var(--caution-500);
   --color-warn-soft:   var(--caution-100);
+
+  --color-ok:      var(--ok-700);
+  --color-ok-soft: var(--ok-100);
 
   --color-canvas:  var(--paper);
   --color-surface: #FFFFFF;

@@ -46,16 +46,19 @@ export function AdminNav({ role }: { role: string }) {
   ].filter((i) => i.show);
 
   const linkClass = (active: boolean) =>
-    `flex min-h-11 items-center gap-2 rounded-lg px-3 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+    `flex min-h-11 items-center gap-2 px-3 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-canvas ${
       active
-        ? "bg-primary-soft text-primary"
-        : "text-muted hover:bg-primary-soft hover:text-primary"
+        ? "rounded-md border-l-[3px] border-urgent bg-canvas font-semibold text-ink"
+        : "rounded-lg text-canvas/70 hover:bg-white/10 hover:text-canvas"
     }`;
 
   return (
-    <nav className="rounded-xl border border-border bg-surface p-2 text-sm lg:sticky lg:top-20">
-      <p className="flex items-center gap-2 px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">
-        <BrandMark className="h-4 w-4" />
+    <nav className="rounded-xl border-transparent bg-ink p-2 text-sm text-canvas lg:sticky lg:top-20">
+      <div className="flex items-center gap-2 px-3 pb-2 pt-2 font-heading text-base font-bold text-canvas">
+        <BrandMark className="h-5 w-5" tone="dark" />
+        Qellal
+      </div>
+      <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-canvas/50">
         Admin · {role}
       </p>
       {items.map(({ href, label, Icon }) => {
@@ -72,10 +75,10 @@ export function AdminNav({ role }: { role: string }) {
           </Link>
         );
       })}
-      <div className="my-2 border-t border-border" />
+      <div className="my-2 border-t border-canvas/15" />
       <Link
         href="/tenders"
-        className="flex min-h-11 items-center gap-2 rounded-lg px-3 font-medium text-muted hover:bg-primary-soft hover:text-primary"
+        className="flex min-h-11 items-center gap-2 rounded-lg px-3 font-medium text-canvas/60 hover:bg-white/10 hover:text-canvas"
       >
         View site
       </Link>

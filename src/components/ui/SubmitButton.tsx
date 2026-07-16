@@ -3,7 +3,14 @@
 import { useFormStatus } from "react-dom";
 import { SpinnerIcon } from "./icons";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "invert";
+type Variant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "danger"
+  | "invert"
+  | "invert-outline"
+  | "invert-ghost";
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
@@ -23,8 +30,12 @@ const variants: Record<Variant, string> = {
   ghost:
     "font-medium text-muted hover:bg-primary-soft hover:text-primary focus-visible:ring-primary",
   danger: "border border-border text-urgent hover:bg-urgent-soft focus-visible:ring-primary",
-  // Paper-on-ink — for use on dark ink surfaces; light focus ring stays visible.
+  // For use on dark ink surfaces; light focus ring stays visible.
   invert: "bg-canvas text-ink hover:bg-hairline focus-visible:ring-canvas",
+  "invert-outline":
+    "border border-canvas/30 text-canvas hover:bg-white/10 focus-visible:ring-canvas",
+  "invert-ghost":
+    "font-medium text-canvas/70 underline underline-offset-2 hover:text-canvas focus-visible:ring-canvas",
 };
 
 export function SubmitButton({

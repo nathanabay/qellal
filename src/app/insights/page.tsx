@@ -60,31 +60,37 @@ export default async function InsightsPage() {
         ) : (
           <div
             className="mt-3 flex items-stretch gap-1.5"
-            style={{ height: "120px" }}
+            style={{ height: "200px" }}
             role="img"
             aria-label={`Tenders published per month: ${months
               .map((m) => `${monthLabel(m.month)}, ${m.tender_count}`)
               .join("; ")}`}
           >
-            {months.map((m) => (
-              <div
-                key={m.month}
-                className="flex h-full flex-1 flex-col items-center gap-1"
-              >
-                <div className="flex w-full flex-1 items-end">
-                  <div
-                    className="w-full rounded-t bg-primary"
-                    style={{
-                      height: `${(m.tender_count / monthMax) * 100}%`,
-                      minHeight: m.tender_count > 0 ? "2px" : "0",
-                    }}
-                  />
+            {months.map((m, i) => {
+              // The latest month is the focal point — signal-red; the rest recede.
+              const latest = i === months.length - 1;
+              return (
+                <div
+                  key={m.month}
+                  className="flex h-full flex-1 flex-col items-center gap-1"
+                >
+                  <div className="flex w-full flex-1 items-end">
+                    <div
+                      className={`w-full rounded-t ${latest ? "bg-urgent" : "bg-border"}`}
+                      style={{
+                        height: `${(m.tender_count / monthMax) * 100}%`,
+                        minHeight: m.tender_count > 0 ? "2px" : "0",
+                      }}
+                    />
+                  </div>
+                  <span
+                    className={`font-mono text-[10px] tabular-nums ${latest ? "text-urgent" : "text-muted"}`}
+                  >
+                    {monthLabel(m.month)}
+                  </span>
                 </div>
-                <span className="text-[10px] text-muted tabular-nums">
-                  {monthLabel(m.month)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -115,7 +121,7 @@ export default async function InsightsPage() {
                 </div>
                 <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-canvas">
                   <div
-                    className="h-full rounded-full bg-primary"
+                    className="h-full rounded-full bg-ink"
                     style={{ width: `${(s.open / sectorMax) * 100}%` }}
                   />
                 </div>

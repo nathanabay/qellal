@@ -72,8 +72,8 @@ export function TenderFilters({
             onClick={() => onChange({ scope: s.value })}
             className={`min-h-9 rounded-md px-3 text-sm font-medium transition-colors ${
               value.scope === s.value
-                ? "bg-primary text-white"
-                : "text-muted hover:text-ink"
+                ? "bg-ink text-canvas"
+                : "text-ink hover:bg-canvas"
             }`}
           >
             {s.label}

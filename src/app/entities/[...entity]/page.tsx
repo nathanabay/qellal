@@ -64,18 +64,34 @@ export default async function EntityPage({ params }: { params: Params }) {
 
       <div className="mt-4 grid grid-cols-3 gap-2">
         {[
-          { label: "Total tenders", value: stat?.tender_count ?? tenders.length },
-          { label: "Open now", value: stat?.open_count ?? openTenders.length },
-          { label: "Sectors", value: sectorCount },
+          {
+            label: "Total tenders",
+            value: stat?.tender_count ?? tenders.length,
+            emphasis: false,
+          },
+          {
+            label: "Open now",
+            value: stat?.open_count ?? openTenders.length,
+            emphasis: true,
+          },
+          { label: "Sectors", value: sectorCount, emphasis: false },
         ].map((s) => (
           <div
             key={s.label}
-            className="rounded-xl border border-border bg-surface p-3 text-center"
+            className={`rounded-xl border p-3 text-center ${
+              s.emphasis ? "border-transparent bg-ink" : "border-border bg-surface"
+            }`}
           >
-            <p className="font-heading text-2xl font-bold tabular-nums text-ink">
+            <p
+              className={`font-mono text-2xl font-bold tabular-nums ${
+                s.emphasis ? "text-urgent" : "text-ink"
+              }`}
+            >
               {s.value}
             </p>
-            <p className="text-xs text-muted">{s.label}</p>
+            <p className={`text-xs ${s.emphasis ? "text-canvas/60" : "text-muted"}`}>
+              {s.label}
+            </p>
           </div>
         ))}
       </div>
@@ -91,7 +107,9 @@ export default async function EntityPage({ params }: { params: Params }) {
                 {topSectors.map(([n, c]) => (
                   <li key={n} className="flex justify-between gap-3">
                     <span className="min-w-0 truncate">{n}</span>
-                    <span className="shrink-0 text-muted">{c}</span>
+                    <span className="shrink-0 font-mono tabular-nums text-muted">
+                      {c}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -106,7 +124,9 @@ export default async function EntityPage({ params }: { params: Params }) {
                 {topRegions.map(([n, c]) => (
                   <li key={n} className="flex justify-between gap-3">
                     <span className="min-w-0 truncate">{n}</span>
-                    <span className="shrink-0 text-muted">{c}</span>
+                    <span className="shrink-0 font-mono tabular-nums text-muted">
+                      {c}
+                    </span>
                   </li>
                 ))}
               </ul>

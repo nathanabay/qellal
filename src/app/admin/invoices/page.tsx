@@ -14,7 +14,7 @@ const inputClass =
 
 function statusBadge(status: string) {
   return status === "paid"
-    ? "bg-primary-soft text-primary"
+    ? "bg-ok-soft text-ok"
     : status === "credit"
       ? "bg-warn-soft text-warn"
       : "bg-canvas text-muted";
@@ -75,10 +75,10 @@ export default async function AdminInvoicesPage() {
                         {inv.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-muted">
+                    <td className="px-4 py-3 font-mono tabular-nums text-muted">
                       {inv.created_at ? formatDate(inv.created_at) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold tabular-nums text-ink">
+                    <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums text-ink">
                       ETB {inv.total.toFixed(2)}
                     </td>
                   </tr>
@@ -91,7 +91,7 @@ export default async function AdminInvoicesPage() {
                 <li key={inv.id} className="flex items-center justify-between gap-2 p-4">
                   <div>
                     <div className="font-medium text-ink">{inv.number}</div>
-                    <p className="mt-0.5 text-xs text-muted">
+                    <p className="mt-0.5 font-mono text-xs tabular-nums text-muted">
                       {inv.email ?? "—"} ·{" "}
                       {inv.created_at ? formatDate(inv.created_at) : "—"}
                     </p>
@@ -102,7 +102,7 @@ export default async function AdminInvoicesPage() {
                     >
                       {inv.status}
                     </span>
-                    <div className="mt-1 font-semibold tabular-nums text-ink">
+                    <div className="mt-1 font-mono font-semibold tabular-nums text-ink">
                       ETB {inv.total.toFixed(2)}
                     </div>
                   </div>

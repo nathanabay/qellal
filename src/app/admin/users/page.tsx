@@ -35,7 +35,7 @@ function ManageForm({ u, isSelf }: { u: AdminUser; isSelf: boolean }) {
         <option value="free">free</option>
         <option value="pro">pro</option>
       </select>
-      <SubmitButton variant="secondary" className="px-3" pendingText="Saving…">
+      <SubmitButton className="px-3" pendingText="Saving…">
         Save
       </SubmitButton>
       {isSelf && <span className="text-xs text-muted">(you)</span>}
@@ -91,7 +91,7 @@ export default async function AdminUsersPage() {
                 <td className="px-4 py-3 text-muted">
                   {u.company_name ?? "—"}
                 </td>
-                <td className="px-4 py-3 text-muted">
+                <td className="px-4 py-3 font-mono tabular-nums text-muted">
                   {u.created_at ? formatDate(u.created_at) : "—"}
                 </td>
                 <td className="px-4 py-3">

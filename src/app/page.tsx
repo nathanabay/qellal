@@ -205,7 +205,10 @@ export default async function Home() {
       {/* CTA band */}
       <section className="bg-navy">
         <div className="mx-auto max-w-5xl px-4 py-16 text-center">
-          <h2 className="mx-auto max-w-2xl font-heading text-2xl font-bold text-canvas sm:text-3xl">
+          <p className="font-mono text-xs uppercase tracking-widest text-canvas/60">
+            {openCount > 0 ? `${openCount} live` : "Live"} · Closing from 02 days
+          </p>
+          <h2 className="mx-auto mt-3 max-w-2xl font-heading text-2xl font-bold text-canvas sm:text-3xl">
             Start tracking tenders in under a minute
           </h2>
           <p className="mx-auto mt-3 max-w-lg text-canvas/70">

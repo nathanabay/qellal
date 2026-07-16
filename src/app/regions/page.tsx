@@ -48,7 +48,7 @@ export default async function RegionsPage() {
                 className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <span className="min-w-0 truncate font-medium text-ink">{r}</span>
-                <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">
+                <span className="shrink-0 rounded-full border border-border px-2 py-0.5 font-mono text-xs font-semibold text-ink tabular-nums">
                   {counts.regions[r] ?? 0} open
                 </span>
               </Link>

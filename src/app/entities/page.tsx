@@ -47,12 +47,13 @@ export default async function EntitiesPage() {
                 className="block rounded-xl border border-border bg-surface p-3 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate font-medium text-ink">
-                    <span className="text-muted">{i + 1}.</span> {e.entity}
+                  <span className="min-w-0 truncate font-heading font-semibold text-ink">
+                    <span className="font-mono text-muted">{i + 1}.</span>{" "}
+                    {e.entity}
                   </span>
-                  <span className="shrink-0 text-xs text-muted tabular-nums">
+                  <span className="shrink-0 font-mono text-xs tabular-nums text-muted">
                     {e.tender_count} total ·{" "}
-                    <span className="font-semibold text-primary">
+                    <span className="font-semibold text-ink">
                       {e.open_count} open
                     </span>
                   </span>

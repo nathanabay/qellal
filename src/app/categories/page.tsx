@@ -47,7 +47,7 @@ export default async function CategoriesPage() {
                   <span className="min-w-0 truncate font-medium text-ink">
                     {c.name}
                   </span>
-                  <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">
+                  <span className="shrink-0 rounded-full border border-border px-2 py-0.5 font-mono text-xs font-semibold text-ink tabular-nums">
                     {open} open
                   </span>
                 </Link>

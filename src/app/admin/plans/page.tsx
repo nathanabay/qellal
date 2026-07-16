@@ -51,8 +51,10 @@ export default async function AdminPlansPage() {
             className="rounded-xl border border-border bg-surface p-5"
           >
             <div className="flex items-baseline justify-between">
-              <h2 className="text-lg font-bold text-ink">{plan.name}</h2>
-              <p className="text-sm font-semibold text-ink">
+              <h2 className="font-heading text-lg font-bold text-ink">
+                {plan.name}
+              </h2>
+              <p className="font-mono text-sm font-semibold tabular-nums text-ink">
                 {plan.priceEtbMonthly === 0
                   ? "Free"
                   : `ETB ${plan.priceEtbMonthly}/mo`}
@@ -101,7 +103,7 @@ export default async function AdminPlansPage() {
             {ROLES.map((r) => (
               <tr key={r.role} className="border-b border-border last:border-0">
                 <td className="px-4 py-3">
-                  <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary">
+                  <span className="rounded-full border border-border bg-canvas px-2 py-0.5 text-xs font-semibold text-muted">
                     {r.role}
                   </span>
                 </td>

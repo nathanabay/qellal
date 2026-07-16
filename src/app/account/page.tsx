@@ -87,7 +87,7 @@ export default async function AccountPage({
       {upgraded && (
         <div
           role="status"
-          className="mb-6 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary-soft p-4 text-sm text-primary"
+          className="mb-6 flex items-center gap-2 rounded-xl border border-ok/30 bg-ok-soft p-4 text-sm text-ok"
         >
           <CheckIcon className="h-4 w-4" />
           Payment received — you&apos;re on Pro. Thanks!
@@ -106,27 +106,27 @@ export default async function AccountPage({
       {/* Left rail — plan + invoices */}
       <div>
       {/* Plan & subscription lifecycle (Slice 2 — test mode, no real charge) */}
-      <section className="mb-6 rounded-xl border border-border bg-surface p-4">
+      <section className="mb-6 rounded-xl border-transparent bg-ink p-4 text-canvas">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-canvas/60">
             Your plan
           </h2>
-          <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-semibold text-primary">
+          <span className="rounded-full bg-urgent px-2.5 py-0.5 text-xs font-semibold text-white">
             {planName}
           </span>
         </div>
-        <p className="mt-2 text-sm text-ink">{statusLine}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <p className="mt-2 text-sm text-canvas/80">{statusLine}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {(status === null || status === "canceled") && (
             <>
-              <form action={startTrial}>
-                <SubmitButton variant="secondary" className="px-3" pendingText="Starting…">
-                  Start 14-day Pro trial
+              <form action={checkoutPro}>
+                <SubmitButton variant="invert" className="px-3" pendingText="Upgrading…">
+                  Upgrade to Pro
                 </SubmitButton>
               </form>
-              <form action={checkoutPro}>
-                <SubmitButton className="px-3" pendingText="Upgrading…">
-                  Upgrade to Pro
+              <form action={startTrial}>
+                <SubmitButton variant="invert-outline" className="px-3" pendingText="Starting…">
+                  Start 14-day Pro trial
                 </SubmitButton>
               </form>
             </>
@@ -134,46 +134,46 @@ export default async function AccountPage({
           {status === "trialing" && (
             <>
               <form action={checkoutPro}>
-                <SubmitButton className="px-3" pendingText="Activating…">
+                <SubmitButton variant="invert" className="px-3" pendingText="Activating…">
                   Activate Pro now
                 </SubmitButton>
               </form>
               <form action={pausePlan}>
-                <SubmitButton variant="secondary" className="px-3">
+                <SubmitButton variant="invert-outline" className="px-3">
                   Pause
                 </SubmitButton>
               </form>
               <form action={cancelPlan}>
-                <SubmitButton variant="ghost">Cancel</SubmitButton>
+                <SubmitButton variant="invert-ghost">Cancel</SubmitButton>
               </form>
             </>
           )}
           {status === "active" && (
             <>
               <form action={pausePlan}>
-                <SubmitButton className="px-3" pendingText="Pausing…">
+                <SubmitButton variant="invert" className="px-3" pendingText="Pausing…">
                   Pause
                 </SubmitButton>
               </form>
               <form action={cancelPlan}>
-                <SubmitButton variant="ghost">Cancel Pro → Free</SubmitButton>
+                <SubmitButton variant="invert-ghost">Cancel Pro → Free</SubmitButton>
               </form>
             </>
           )}
           {status === "paused" && (
             <>
               <form action={resumePlan}>
-                <SubmitButton className="px-3" pendingText="Resuming…">
+                <SubmitButton variant="invert" className="px-3" pendingText="Resuming…">
                   Resume
                 </SubmitButton>
               </form>
               <form action={cancelPlan}>
-                <SubmitButton variant="ghost">Cancel</SubmitButton>
+                <SubmitButton variant="invert-ghost">Cancel</SubmitButton>
               </form>
             </>
           )}
         </div>
-        <p className="mt-3 text-xs text-muted">
+        <p className="mt-3 text-xs text-canvas/50">
           Upgrading redirects you to Chapa to pay securely. Card details are
           handled by Chapa, never stored here.
         </p>
@@ -194,7 +194,7 @@ export default async function AccountPage({
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                         inv.status === "paid"
-                          ? "bg-primary-soft text-primary"
+                          ? "bg-ok-soft text-ok"
                           : inv.status === "credit"
                             ? "bg-warn-soft text-warn"
                             : "bg-canvas text-muted"
@@ -203,7 +203,7 @@ export default async function AccountPage({
                       {inv.status}
                     </span>
                   </div>
-                  <span className="font-semibold tabular-nums text-ink">
+                  <span className="font-mono font-semibold tabular-nums text-ink">
                     {inv.currency} {inv.total.toFixed(2)}
                   </span>
                 </div>
@@ -373,7 +373,20 @@ export default async function AccountPage({
                   key={s.id}
                   className="flex items-center justify-between gap-3 rounded-lg border border-border bg-canvas px-3 py-2 text-sm"
                 >
-                  <span className="text-ink">{parts.join(" · ")}</span>
+                  <span className="flex min-w-0 flex-wrap gap-1.5">
+                    {parts.length === 0 ? (
+                      <span className="text-muted">Any tender</span>
+                    ) : (
+                      parts.map((p) => (
+                        <span
+                          key={String(p)}
+                          className="inline-flex rounded-full border border-border px-2.5 py-0.5 text-xs text-ink"
+                        >
+                          {p}
+                        </span>
+                      ))
+                    )}
+                  </span>
                   <form action={removeSubscription}>
                     <input type="hidden" name="id" value={s.id} />
                     <SubmitButton variant="danger" className="px-3">

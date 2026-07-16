@@ -36,7 +36,7 @@ export function SiteFooter() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-1">
             <div className="flex items-center gap-2 font-heading text-lg font-bold text-canvas">
-              <BrandMark className="h-5 w-5" />
+              <BrandMark className="h-5 w-5" tone="dark" />
               Qellal
             </div>
             <p className="mt-3 max-w-xs text-sm text-canvas/60">

@@ -5,7 +5,7 @@ export function AuthBrandPanel() {
   return (
     <div className="hidden flex-col justify-between bg-ink p-8 text-canvas lg:flex">
       <div className="flex items-center gap-2 font-heading text-lg font-bold">
-        <BrandMark />
+        <BrandMark tone="dark" />
         Qellal
       </div>
       <div>

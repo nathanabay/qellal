@@ -29,18 +29,32 @@ export default async function AdminSubscriptionsPage() {
   const categoryName = (id: number | null) =>
     id != null ? (categories.find((c) => c.id === id)?.name ?? "—") : "—";
 
-  const criteria = (s: {
+  const criteriaParts = (s: {
     category_id: number | null;
     keyword: string | null;
     region: string | null;
-  }) =>
+  }): string[] =>
     [
       s.category_id != null ? categoryName(s.category_id) : null,
       s.keyword ? `“${s.keyword}”` : null,
       s.region,
-    ]
-      .filter(Boolean)
-      .join(" · ") || "—";
+    ].filter((x): x is string => Boolean(x));
+
+  const Chips = ({ parts }: { parts: string[] }) =>
+    parts.length === 0 ? (
+      <span className="text-muted">Any tender</span>
+    ) : (
+      <span className="flex flex-wrap gap-1.5">
+        {parts.map((p) => (
+          <span
+            key={p}
+            className="inline-flex rounded-full border border-border px-2.5 py-0.5 text-xs text-ink"
+          >
+            {p}
+          </span>
+        ))}
+      </span>
+    );
 
   return (
     <>
@@ -84,8 +98,10 @@ export default async function AdminSubscriptionsPage() {
                     className="border-b border-border last:border-0 hover:bg-canvas"
                   >
                     <td className="px-4 py-3 text-ink">{s.email ?? "—"}</td>
-                    <td className="px-4 py-3 text-muted">{criteria(s)}</td>
                     <td className="px-4 py-3 text-muted">
+                      <Chips parts={criteriaParts(s)} />
+                    </td>
+                    <td className="px-4 py-3 font-mono tabular-nums text-muted">
                       {s.created_at ? formatDate(s.created_at) : "—"}
                     </td>
                     <td className="px-4 py-3">
@@ -103,8 +119,10 @@ export default async function AdminSubscriptionsPage() {
               {subs.map((s) => (
                 <li key={s.id} className="p-4">
                   <div className="font-medium text-ink">{s.email ?? "—"}</div>
-                  <p className="mt-1 text-sm text-muted">{criteria(s)}</p>
-                  <p className="mt-1 text-xs text-muted">
+                  <div className="mt-1.5 text-sm text-muted">
+                    <Chips parts={criteriaParts(s)} />
+                  </div>
+                  <p className="mt-1.5 font-mono text-xs tabular-nums text-muted">
                     {s.created_at ? formatDate(s.created_at) : "—"}
                   </p>
                   <div className="mt-3">

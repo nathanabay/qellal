@@ -13,9 +13,7 @@ export const metadata = { title: "Dunning — Qellal admin" };
 function statusBadge(status: string) {
   return status === "past_due"
     ? "bg-urgent-soft text-urgent"
-    : status === "active" || status === "trialing"
-      ? "bg-primary-soft text-primary"
-      : "bg-canvas text-muted";
+    : "bg-canvas text-muted"; // active/trialing & everything else stay neutral
 }
 
 export default async function AdminDunningPage() {
@@ -47,6 +45,15 @@ export default async function AdminDunningPage() {
     return { ...s, email: emailById.get(s.user_id) ?? null, action, daysOverdue };
   });
   const pastDue = rows.filter((r) => r.status === "past_due").length;
+  const activeCount = rows.filter(
+    (r) => r.status === "active" || r.status === "trialing",
+  ).length;
+  const renewalsDue = rows.filter((r) => r.action === "renewal due").length;
+  const healthTiles = [
+    { label: "Past due", value: pastDue, emphasis: true },
+    { label: "Active", value: activeCount, emphasis: false },
+    { label: "Renewals due", value: renewalsDue, emphasis: false },
+  ];
 
   return (
     <>
@@ -64,6 +71,29 @@ export default async function AdminDunningPage() {
           Overdue collections. {pastDue} subscription{pastDue === 1 ? "" : "s"}{" "}
           past due.
         </p>
+      </div>
+
+      {/* Health strip — Past due is the emphasised ink tile. */}
+      <div className="mb-6 grid grid-cols-3 gap-3">
+        {healthTiles.map((t) => (
+          <div
+            key={t.label}
+            className={`rounded-xl border p-4 ${
+              t.emphasis ? "border-transparent bg-ink" : "border-border bg-surface"
+            }`}
+          >
+            <p
+              className={`font-mono text-2xl font-bold tabular-nums ${
+                t.emphasis ? "text-urgent" : "text-ink"
+              }`}
+            >
+              {t.value}
+            </p>
+            <p className={`mt-1 text-xs ${t.emphasis ? "text-canvas/60" : "text-muted"}`}>
+              {t.label}
+            </p>
+          </div>
+        ))}
       </div>
 
       <section className="mb-6 rounded-xl border border-border bg-surface p-4">
@@ -116,14 +146,26 @@ export default async function AdminDunningPage() {
                       {r.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted">
+                  <td className="px-4 py-3 font-mono tabular-nums text-muted">
                     {r.current_period_end ? formatDate(r.current_period_end) : "—"}
                   </td>
-                  <td className="px-4 py-3 text-muted">
+                  <td
+                    className={`px-4 py-3 font-mono tabular-nums ${
+                      r.daysOverdue !== null ? "text-urgent" : "text-muted"
+                    }`}
+                  >
                     {r.daysOverdue !== null ? `${r.daysOverdue}d` : "—"}
                   </td>
-                  <td className="px-4 py-3 text-muted">{r.dunning_attempt ?? 0}</td>
-                  <td className="px-4 py-3 font-medium text-ink">{r.action}</td>
+                  <td className="px-4 py-3 font-mono tabular-nums text-muted">
+                    {r.dunning_attempt ?? 0}
+                  </td>
+                  <td
+                    className={`px-4 py-3 font-medium ${
+                      r.action.includes("downgrade") ? "text-urgent" : "text-ink"
+                    }`}
+                  >
+                    {r.action}
+                  </td>
                 </tr>
               ))}
             </tbody>
