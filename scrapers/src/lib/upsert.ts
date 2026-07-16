@@ -31,11 +31,31 @@ export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
 
   const supabase = getSupabase();
 
-  // Resolve category slugs → ids once (small table).
+  // Ensure a categories row exists for each 2merkato category in this batch,
+  // then resolve slug → id. New categories are created on the fly.
+  const wantCats = new Map<string, string>(); // slug -> name
+  for (const r of rows) {
+    if (r.category_slug && r.category_name)
+      wantCats.set(r.category_slug, r.category_name);
+  }
   const { data: cats } = await supabase.from("categories").select("id,slug");
   const slugToId = new Map<string, number>(
     (cats ?? []).map((c: { id: number; slug: string }) => [c.slug, c.id]),
   );
+  const missing = [...wantCats.entries()]
+    .filter(([slug]) => !slugToId.has(slug))
+    .map(([slug, name]) => ({ name, slug }));
+  if (missing.length > 0) {
+    await supabase
+      .from("categories")
+      .upsert(missing, { onConflict: "slug", ignoreDuplicates: true });
+    const { data: refreshed } = await supabase
+      .from("categories")
+      .select("id,slug");
+    slugToId.clear();
+    for (const c of (refreshed ?? []) as { id: number; slug: string }[])
+      slugToId.set(c.slug, c.id);
+  }
 
   // Collapse duplicate source_urls within this batch first.
   const byUrl = new Map<string, TenderInput>();
@@ -58,7 +78,8 @@ export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
   // Scraped tenders auto-publish (manual admin entries are what get reviewed).
   const nowIso = new Date().toISOString();
   const payload = fresh.map((t) => {
-    const { category_slug, ...rest } = t;
+    const { category_slug, category_name: _name, ...rest } = t;
+    void _name;
     return {
       ...rest,
       category_id: category_slug ? (slugToId.get(category_slug) ?? null) : null,

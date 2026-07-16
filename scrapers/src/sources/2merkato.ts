@@ -1,6 +1,5 @@
 import { CheerioCrawler } from "crawlee";
 import type { TenderInput } from "../lib/types";
-import { toSuperSlug } from "../lib/merkato-categories";
 import {
   merkatoLogin,
   cookieHeaderFor,
@@ -53,35 +52,46 @@ function nameOf(v: NamePair | string | null | undefined): string | null {
   return v.name_en ?? v.name ?? null;
 }
 
-// 2merkato categories can be a list, a single object, or a string. Return the
-// first raw name that maps to one of our super-categories (else the first name).
-function categorySlug(
-  cats: NamePair[] | NamePair | string | null,
-): { slug: string | null; raw: string | null } {
-  const names: string[] = [];
-  if (Array.isArray(cats)) {
-    for (const c of cats) {
-      const n = nameOf(c);
-      if (n) names.push(n);
-    }
-  } else {
-    const n = nameOf(cats);
-    if (n) names.push(n);
-  }
-  for (const n of names) {
-    const slug = toSuperSlug(n);
-    if (slug) return { slug, raw: n };
-  }
-  return { slug: null, raw: names[0] ?? null };
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "")
+    .slice(0, 80);
 }
 
-function cleanText(s: string | null | undefined): string | null {
-  if (!s) return null;
-  const t = s
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
+// The tender's first 2merkato category with a sluggable English name.
+function firstCategory(
+  cats: NamePair[] | NamePair | string | null,
+): { name: string; slug: string } | null {
+  const arr = Array.isArray(cats) ? cats : cats ? [cats] : [];
+  for (const c of arr) {
+    const name = nameOf(c);
+    if (name) {
+      const slug = slugify(name);
+      if (slug) return { name, slug };
+    }
+  }
+  return null;
+}
+
+// Preserve 2merkato's description formatting by keeping a safe whitelist of
+// block/inline tags (all attributes, scripts, links stripped) so the detail
+// page renders it the way 2merkato does.
+const ALLOWED_TAGS = /^\/?(?:p|br|strong|b|em|i|u|ul|ol|li|h[3-6]|span)$/i;
+function formatDescription(html: string | null | undefined): string | null {
+  if (!html) return null;
+  const s = html
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<(script|style|iframe|object|embed|link|meta)\b[\s\S]*?<\/\1>/gi, "")
+    .replace(/<(script|style|iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "")
+    .replace(/<(\/?)([a-zA-Z0-9]+)\b[^>]*>/g, (_m, slash, tag) =>
+      ALLOWED_TAGS.test(`${slash}${tag}`) ? `<${slash}${tag.toLowerCase()}>` : "",
+    )
+    .replace(/(\s*\n\s*){3,}/g, "\n\n")
     .trim();
-  return t || null;
+  return s || null;
 }
 
 function toStr(v: string | number | null | undefined): string | null {
@@ -121,8 +131,6 @@ export async function scrape2merkato(
       "2merkato: no MERKATO_USERNAME/PASSWORD — public tenders only (most deadlines hidden).",
     );
   }
-
-  const unmapped = new Set<string>();
 
   // Flush scraped rows in batches so progress survives a timeout/cancel.
   const BATCH_SIZE = 50;
@@ -173,11 +181,13 @@ export async function scrape2merkato(
         const t = page.props?.tender;
         const base = request.userData.partial as TenderInput;
         if (t) {
-          const { slug, raw: rawCat } = categorySlug(t.categories);
-          if (rawCat && !slug) unmapped.add(rawCat);
-          base.category_slug = slug;
+          const cat = firstCategory(t.categories);
+          base.category_slug = cat?.slug ?? base.category_slug;
+          base.category_name = cat?.name ?? base.category_name;
           base.description =
-            cleanText(t.description) ?? cleanText(t.ai_summary) ?? null;
+            formatDescription(t.description) ??
+            formatDescription(t.ai_summary) ??
+            null;
           // Detail values are more complete than the list; override.
           base.bid_bond = toStr(t.bid_bond) ?? base.bid_bond;
           base.bid_document_price =
@@ -209,7 +219,8 @@ export async function scrape2merkato(
 
         const partial: TenderInput = {
           title,
-          description: cleanText(t.description) ?? cleanText(t.ai_summary),
+          description:
+            formatDescription(t.description) ?? formatDescription(t.ai_summary),
           region: nameOf(t.region),
           publishing_entity: nameOf(t.company),
           published_date: toDate(t.published_at ?? t.created_at),
@@ -217,6 +228,7 @@ export async function scrape2merkato(
           source_name: SOURCE_NAME,
           source_url: sourceUrl,
           category_slug: null,
+          category_name: null,
           bid_bond: toStr(t.bid_bond),
           bid_document_price: toStr(t.bid_document_price),
           published_on: publishedOn(t.sources),
@@ -250,10 +262,5 @@ export async function scrape2merkato(
   await crawler.run([`${BASE}/tenders?status=open&page=${startPage}`]);
   await flush(); // persist the final partial batch
 
-  if (unmapped.size > 0) {
-    console.log(
-      `2merkato: ${unmapped.size} category name(s) had no super-category mapping (left uncategorized): ${[...unmapped].slice(0, 15).join(", ")}`,
-    );
-  }
   return totalFlushed;
 }

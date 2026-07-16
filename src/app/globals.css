@@ -88,3 +88,31 @@ button:not(:disabled),
     scroll-behavior: auto !important;
   }
 }
+
+/* Rendered 2merkato tender description (sanitized HTML). Preserve paragraph and
+   list structure the way 2merkato formats it. */
+.tender-desc > * + * {
+  margin-top: 0.75rem;
+}
+.tender-desc strong,
+.tender-desc b {
+  font-weight: 600;
+}
+.tender-desc ul,
+.tender-desc ol {
+  margin-left: 1.25rem;
+  list-style: disc;
+}
+.tender-desc ol {
+  list-style: decimal;
+}
+.tender-desc li {
+  margin-top: 0.25rem;
+}
+.tender-desc h3,
+.tender-desc h4,
+.tender-desc h5,
+.tender-desc h6 {
+  font-weight: 600;
+  margin-top: 0.75rem;
+}

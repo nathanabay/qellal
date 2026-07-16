@@ -131,9 +131,12 @@ export default async function TenderDetailPage({
             </h2>
             <div className="mt-3 rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
               {tender.description ? (
-                <p className="whitespace-pre-line leading-relaxed text-ink">
-                  {tender.description}
-                </p>
+                <div
+                  className="tender-desc leading-relaxed text-ink"
+                  // Sanitized at scrape time to a safe tag whitelist (no attrs,
+                  // scripts or links) so we can keep 2merkato's formatting.
+                  dangerouslySetInnerHTML={{ __html: tender.description }}
+                />
               ) : (
                 <p className="text-sm text-muted">
                   No description provided — see the original notice for full

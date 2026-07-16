@@ -13,7 +13,8 @@ export type TenderInput = {
   bid_bond: string | null; // e.g. "50,000" or "5% of bid price"
   bid_document_price: string | null; // cost to obtain the bid documents
   published_on: string | null; // source publication date, e.g. "Jul 15, 2026"
-  // Our super-category slug (resolved to category_id by the upsert layer). Null
-  // when the source category is missing or unmapped — admin assigns on review.
+  // The tender's 2merkato category (its first one). The upsert layer creates
+  // the category if new and resolves the slug to category_id.
   category_slug: string | null;
+  category_name: string | null;
 };
