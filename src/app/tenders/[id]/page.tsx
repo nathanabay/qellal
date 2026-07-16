@@ -213,6 +213,13 @@ export default async function TenderDetailPage({
                   </Link>
                 )}
               </div>
+              {d > 0 && (
+                <p className="mt-2 text-xs text-muted">
+                  {saved
+                    ? "You’ll be reminded 7, 3 & 1 days before it closes."
+                    : "Save it to get 7, 3 & 1-day deadline reminders."}
+                </p>
+              )}
             </div>
 
             {/* Facts */}

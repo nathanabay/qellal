@@ -21,6 +21,7 @@ export async function updateNotificationPrefs(formData: FormData) {
       email_notifications: formData.get("email_notifications") === "on",
       telegram_notifications: formData.get("telegram_notifications") === "on",
       digest_mode: formData.get("digest_mode") === "on",
+      deadline_reminders: formData.get("deadline_reminders") === "on",
     })
     .eq("id", user.id);
   if (error) console.error("prefs update failed:", error.message);

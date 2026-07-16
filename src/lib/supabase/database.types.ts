@@ -260,6 +260,7 @@ export type Database = {
           email_notifications: boolean | null;
           telegram_notifications: boolean | null;
           digest_mode: boolean | null;
+          deadline_reminders: boolean | null;
           telegram_link_token: string;
           notifications_paused_until: string | null;
           created_at: string | null;
@@ -275,6 +276,7 @@ export type Database = {
           email_notifications?: boolean | null;
           telegram_notifications?: boolean | null;
           digest_mode?: boolean | null;
+          deadline_reminders?: boolean | null;
           telegram_link_token?: string;
           notifications_paused_until?: string | null;
           created_at?: string | null;
@@ -290,6 +292,7 @@ export type Database = {
           email_notifications?: boolean | null;
           telegram_notifications?: boolean | null;
           digest_mode?: boolean | null;
+          deadline_reminders?: boolean | null;
           telegram_link_token?: string;
           notifications_paused_until?: string | null;
           created_at?: string | null;

@@ -154,7 +154,8 @@ def main():
 
     profiles = rest("profiles", params={
         "select": "id,email,email_notifications,telegram_notifications,"
-                  "telegram_chat_id,digest_mode,notifications_paused_until",
+                  "telegram_chat_id,digest_mode,deadline_reminders,"
+                  "notifications_paused_until",
     })
     subs_all = rest("subscriptions", params={
         "select": "id,user_id,category_id,keyword,region",
@@ -163,12 +164,19 @@ def main():
         "select": "id,title,category_id,region,deadline,source_name,published_at",
         "status": "eq.published",
     })
+    saved = rest("saved_tenders", params={"select": "user_id,tender_id"})
     sent = rest("notifications_sent", params={"select": "user_id,tender_id,channel,kind"})
     sent_set = {(s["user_id"], s["tender_id"], s["channel"], s["kind"]) for s in sent}
 
     subs_by_user = {}
     for s in subs_all:
         subs_by_user.setdefault(s["user_id"], []).append(s)
+
+    saved_by_user = {}
+    for s in saved:
+        saved_by_user.setdefault(s["user_id"], set()).add(s["tender_id"])
+
+    tenders_by_id = {t["id"]: t for t in tenders}
 
     plan = []  # (profile, channel, kind, [tenders])
 
@@ -182,7 +190,8 @@ def main():
                 pass
 
         usubs = subs_by_user.get(p["id"], [])
-        if not usubs:
+        saved_ids = saved_by_user.get(p["id"], set())
+        if not usubs and not saved_ids:
             continue
 
         channels = []
@@ -193,23 +202,29 @@ def main():
         if not channels:
             continue
 
-        matched = [t for t in tenders if user_matches(usubs, t)]
+        matched = [t for t in tenders if user_matches(usubs, t)] if usubs else []
 
-        # Reminders (time-sensitive): one message per tender per stage.
-        for t in matched:
-            try:
-                days = (datetime.date.fromisoformat(t["deadline"]) - today).days
-            except Exception:  # noqa: BLE001
-                continue
-            kind = REMINDER_DAYS.get(days)
-            if not kind:
-                continue
-            for ch in channels:
-                if (p["id"], t["id"], ch, kind) not in sent_set:
-                    plan.append((p, ch, kind, [t]))
+        # Reminders (time-sensitive): subscription matches + individually saved
+        # tenders (per-tender "remind me"). One message per tender per stage.
+        if p.get("deadline_reminders", True):
+            reminder_ids = {t["id"] for t in matched} | saved_ids
+            for tid in reminder_ids:
+                t = tenders_by_id.get(tid)
+                if not t:
+                    continue
+                try:
+                    days = (datetime.date.fromisoformat(t["deadline"]) - today).days
+                except Exception:  # noqa: BLE001
+                    continue
+                kind = REMINDER_DAYS.get(days)
+                if not kind:
+                    continue
+                for ch in channels:
+                    if (p["id"], t["id"], ch, kind) not in sent_set:
+                        plan.append((p, ch, kind, [t]))
 
         # Digest: newly published (last 24h) matching items, grouped into one message.
-        if p.get("digest_mode", True):
+        if matched and p.get("digest_mode", True):
             cutoff = now - datetime.timedelta(hours=24)
             fresh_all = []
             for t in matched:

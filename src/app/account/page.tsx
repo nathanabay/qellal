@@ -238,6 +238,16 @@ export default async function AccountPage({
           <label className="flex items-center gap-3 text-sm text-ink">
             <input
               type="checkbox"
+              name="deadline_reminders"
+              defaultChecked={profile?.deadline_reminders}
+              className="h-4 w-4"
+            />
+            Deadline reminders
+            <span className="text-xs text-muted">(7, 3 &amp; 1 days before)</span>
+          </label>
+          <label className="flex items-center gap-3 text-sm text-ink">
+            <input
+              type="checkbox"
               name="digest_mode"
               defaultChecked={profile?.digest_mode}
               className="h-4 w-4"
@@ -338,6 +348,11 @@ export default async function AccountPage({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
           Tenders you&apos;re watching
         </h2>
+        <p className="mt-1 text-xs text-muted">
+          {profile?.deadline_reminders
+            ? "New matches arrive as they’re published; each gets 7, 3 & 1-day deadline reminders."
+            : "New matches arrive as they’re published. Turn on deadline reminders above for 7/3/1-day nudges."}
+        </p>
 
         {subs.length === 0 ? (
           <p className="mt-3 text-sm text-muted">
@@ -407,6 +422,11 @@ export default async function AccountPage({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
           Saved tenders
         </h2>
+        <p className="mt-1 text-xs text-muted">
+          {profile?.deadline_reminders
+            ? "We’ll remind you 7, 3 & 1 days before each of these closes."
+            : "Turn on deadline reminders above to get 7/3/1-day nudges for these."}
+        </p>
         {saved.length === 0 ? (
           <p className="mt-3 text-sm text-muted">
             No saved tenders yet. Tap the “Save” button on any tender to keep it
