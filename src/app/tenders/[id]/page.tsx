@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { getTenderById, getCategories } from "@/lib/tenders";
+import { getTenderById, getTenderCategories } from "@/lib/tenders";
 import { getSimilarTenders } from "@/lib/insights";
 import { daysLeft, formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -48,14 +48,10 @@ export default async function TenderDetailPage({
     saved = Boolean(data);
   }
 
-  const [categories, similar] = await Promise.all([
-    getCategories(),
+  const [tenderCats, similar] = await Promise.all([
+    getTenderCategories(tender.id),
     getSimilarTenders(tender.category_id, tender.id, 4),
   ]);
-  const categoryName =
-    tender.category_id != null
-      ? (categories.find((c) => c.id === tender.category_id)?.name ?? null)
-      : null;
 
   const d = daysLeft(tender.deadline);
   const urgency =
@@ -68,7 +64,11 @@ export default async function TenderDetailPage({
           : { label: `${d} days left`, cls: "bg-primary-soft text-primary" };
 
   const meta: Array<{ label: string; value: string }> = [];
-  if (categoryName) meta.push({ label: "Category", value: categoryName });
+  if (tenderCats.length > 0)
+    meta.push({
+      label: tenderCats.length > 1 ? "Categories" : "Category",
+      value: tenderCats.map((c) => c.name).join(", "),
+    });
   if (tender.region) meta.push({ label: "Region", value: tender.region });
   if (tender.publishing_entity)
     meta.push({ label: "Publishing entity", value: tender.publishing_entity });
@@ -97,12 +97,16 @@ export default async function TenderDetailPage({
       <div className="mt-5 lg:grid lg:grid-cols-[1fr_20rem] lg:gap-8">
         {/* Main column */}
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            {categoryName && (
-              <span className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-semibold text-primary">
-                {categoryName}
-              </span>
-            )}
+          <div className="flex flex-wrap items-center gap-2">
+            {tenderCats.map((c) => (
+              <Link
+                key={c.id}
+                href={`/tenders?category=${c.slug}`}
+                className="rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-semibold text-primary hover:bg-primary/15"
+              >
+                {c.name}
+              </Link>
+            ))}
             {tender.region && (
               <span className="text-xs font-medium text-muted">
                 {tender.region}

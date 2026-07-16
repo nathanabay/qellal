@@ -187,6 +187,12 @@ export type Database = {
         Insert: { id?: number; name: string; slug: string };
         Update: { id?: number; name?: string; slug?: string };
       };
+      tender_categories: {
+        Relationships: [];
+        Row: { tender_id: string; category_id: number };
+        Insert: { tender_id: string; category_id: number };
+        Update: { tender_id?: string; category_id?: number };
+      };
       tenders: {
         Relationships: [];
         Row: {

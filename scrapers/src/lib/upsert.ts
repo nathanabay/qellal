@@ -31,12 +31,11 @@ export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
 
   const supabase = getSupabase();
 
-  // Ensure a categories row exists for each 2merkato category in this batch,
+  // Ensure a categories row exists for every 2merkato category in this batch,
   // then resolve slug → id. New categories are created on the fly.
   const wantCats = new Map<string, string>(); // slug -> name
   for (const r of rows) {
-    if (r.category_slug && r.category_name)
-      wantCats.set(r.category_slug, r.category_name);
+    for (const c of r.categories) wantCats.set(c.slug, c.name);
   }
   const { data: cats } = await supabase.from("categories").select("id,slug");
   const slugToId = new Map<string, number>(
@@ -78,11 +77,11 @@ export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
   // Scraped tenders auto-publish (manual admin entries are what get reviewed).
   const nowIso = new Date().toISOString();
   const payload = fresh.map((t) => {
-    const { category_slug, category_name: _name, ...rest } = t;
-    void _name;
+    const { categories, ...rest } = t;
+    const primary = categories[0]?.slug;
     return {
       ...rest,
-      category_id: category_slug ? (slugToId.get(category_slug) ?? null) : null,
+      category_id: primary ? (slugToId.get(primary) ?? null) : null,
       // published_date drives listing order; fall back to today if unknown.
       published_date: rest.published_date ?? nowIso.slice(0, 10),
       status: "published",
@@ -91,10 +90,37 @@ export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
     };
   });
 
-  const { error: insErr, count } = await supabase
+  // Insert tenders and get their ids back so we can write the category join rows.
+  const { data: insertedRows, error: insErr } = await supabase
     .from("tenders")
-    .insert(payload, { count: "exact" });
+    .insert(payload)
+    .select("id,source_url");
   if (insErr) throw new Error(`insert failed: ${insErr.message}`);
 
-  return { inserted: count ?? fresh.length, skipped: urls.length - fresh.length };
+  const urlToId = new Map(
+    (insertedRows ?? []).map((r: { id: string; source_url: string }) => [
+      r.source_url,
+      r.id,
+    ]),
+  );
+  const joins: { tender_id: string; category_id: number }[] = [];
+  for (const t of fresh) {
+    const tid = urlToId.get(t.source_url);
+    if (!tid) continue;
+    for (const c of t.categories) {
+      const cid = slugToId.get(c.slug);
+      if (cid) joins.push({ tender_id: tid, category_id: cid });
+    }
+  }
+  if (joins.length > 0) {
+    const { error: jErr } = await supabase
+      .from("tender_categories")
+      .upsert(joins, { onConflict: "tender_id,category_id", ignoreDuplicates: true });
+    if (jErr) console.error("tender_categories insert failed:", jErr.message);
+  }
+
+  return {
+    inserted: insertedRows?.length ?? fresh.length,
+    skipped: urls.length - fresh.length,
+  };
 }

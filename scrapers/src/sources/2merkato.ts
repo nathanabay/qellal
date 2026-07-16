@@ -61,19 +61,22 @@ function slugify(s: string): string {
     .slice(0, 80);
 }
 
-// The tender's first 2merkato category with a sluggable English name.
-function firstCategory(
+// All of a tender's 2merkato categories (deduped, English names). First = primary.
+function allCategories(
   cats: NamePair[] | NamePair | string | null,
-): { name: string; slug: string } | null {
+): { slug: string; name: string }[] {
   const arr = Array.isArray(cats) ? cats : cats ? [cats] : [];
+  const seen = new Set<string>();
+  const out: { slug: string; name: string }[] = [];
   for (const c of arr) {
     const name = nameOf(c);
-    if (name) {
-      const slug = slugify(name);
-      if (slug) return { name, slug };
-    }
+    if (!name) continue;
+    const slug = slugify(name);
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
+    out.push({ slug, name });
   }
-  return null;
+  return out;
 }
 
 // Preserve 2merkato's description formatting by keeping a safe whitelist of
@@ -205,9 +208,8 @@ export async function scrape2merkato(
         const t = page.props?.tender;
         const base = request.userData.partial as TenderInput;
         if (t) {
-          const cat = firstCategory(t.categories);
-          base.category_slug = cat?.slug ?? base.category_slug;
-          base.category_name = cat?.name ?? base.category_name;
+          const cats = allCategories(t.categories);
+          if (cats.length) base.categories = cats;
           base.description =
             formatDescription(t.description) ??
             formatDescription(t.ai_summary) ??
@@ -251,8 +253,7 @@ export async function scrape2merkato(
           deadline,
           source_name: SOURCE_NAME,
           source_url: sourceUrl,
-          category_slug: null,
-          category_name: null,
+          categories: allCategories(t.categories),
           bid_bond: toStr(t.bid_bond),
           bid_document_price: toStr(t.bid_document_price),
           published_on: publishedOn(t.sources),

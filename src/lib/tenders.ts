@@ -121,6 +121,26 @@ export async function getTenderById(id: string): Promise<TenderDetail | null> {
   return data;
 }
 
+// All categories a tender is tagged with (via the tender_categories join).
+export async function getTenderCategories(
+  tenderId: string,
+): Promise<Category[]> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
+  const supabase = await createClient();
+  const { data: links, error } = await supabase
+    .from("tender_categories")
+    .select("category_id")
+    .eq("tender_id", tenderId);
+  if (error || !links || links.length === 0) return [];
+  const ids = links.map((l) => l.category_id);
+  const { data: cats } = await supabase
+    .from("categories")
+    .select("id,name,slug")
+    .in("id", ids)
+    .order("name");
+  return (cats ?? []) as Category[];
+}
+
 export async function getCategories(): Promise<Category[]> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
 
