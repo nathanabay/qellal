@@ -12,8 +12,11 @@ on:
         description: "Source to scrape"
         default: "2merkato"
       pages:
-        description: "Max listing pages (safety cap; auto-stops earlier)"
+        description: "Listing pages to crawl this run"
         default: "500"
+      start_page:
+        description: "Resume deep backfill from this list page"
+        default: "1"
       dry_run:
         description: "Dry run (1 = extract only, do not write)"
         default: "1"
@@ -23,7 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     # Secrets live in the "Production" environment, so the job must declare it.
     environment: Production
-    timeout-minutes: 60
+    # Long enough for a deep backfill chunk; progress is flushed incrementally,
+    # so even if it's cut off, everything scraped so far is saved.
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -41,6 +46,8 @@ jobs:
           # 2merkato subscriber login — unlocks hidden closing dates.
           MERKATO_USERNAME: ${{ secrets.MERKATO_USERNAME }}
           MERKATO_PASSWORD: ${{ secrets.MERKATO_PASSWORD }}
+          # Resume point for chunked deep backfill (default 1).
+          START_PAGE: ${{ github.event.inputs.start_page || '1' }}
           # Scheduled runs write for real; manual runs honor the dry_run input.
           DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
         run: npm run scrape -- ${{ github.event.inputs.source || '2merkato' }} ${{ github.event.inputs.pages || '500' }}

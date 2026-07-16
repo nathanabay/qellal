@@ -2,20 +2,25 @@ import { scrape2merkato } from "./sources/2merkato";
 import { saveTenders, getExistingSourceUrls } from "./lib/upsert";
 import type { TenderInput } from "./lib/types";
 
-// Registry of sources — one entry per source module.
-const SOURCES: Record<
-  string,
-  (pages?: number, existing?: Set<string>) => Promise<TenderInput[]>
-> = {
+// A source scrapes and flushes batches via onBatch, returning the total flushed.
+type Scraper = (
+  pages: number,
+  existing: Set<string>,
+  onBatch: (rows: TenderInput[]) => Promise<number>,
+  startPage: number,
+) => Promise<number>;
+
+const SOURCES: Record<string, Scraper> = {
   "2merkato": scrape2merkato,
 };
 
 // Usage: npm run scrape -- <source> [pages]
-//   DRY_RUN=1  → extract + print, write nothing (no DB creds needed)
+//   DRY_RUN=1     → extract + print, write nothing (no DB creds needed)
+//   START_PAGE=N  → resume a deep backfill from list page N (default 1)
 async function main() {
   const which = process.argv[2] ?? "2merkato";
-  // Safety cap on list pages; the source auto-stops when open tenders run out.
   const pages = Number(process.argv[3] ?? 500) || 500;
+  const startPage = Number(process.env.START_PAGE ?? 1) || 1;
   const dry = process.env.DRY_RUN === "1";
 
   const fn = SOURCES[which];
@@ -26,28 +31,41 @@ async function main() {
     process.exit(1);
   }
 
-  // Load already-stored tender URLs so the scraper can skip them (and stop
-  // early once it reaches previously-scraped tenders). Needs DB creds, so only
-  // when writing for real.
+  // Load already-stored tender URLs so the scraper can skip them. Needs DB
+  // creds, so only when writing for real.
   let existing = new Set<string>();
   if (!dry) {
     existing = await getExistingSourceUrls();
     console.log(`Loaded ${existing.size} existing tenders to skip.`);
   }
 
-  console.log(`Scraping ${which} (pages=${pages}, dry=${dry})…`);
-  const tenders = await fn(pages, existing);
-  console.log(`Extracted ${tenders.length} new open tenders.`);
+  // Flushed in batches DURING the crawl so a timeout still persists progress.
+  let running = 0;
+  let previewed = 0;
+  const onBatch = async (rows: TenderInput[]): Promise<number> => {
+    if (dry) {
+      if (previewed < 5) {
+        console.log(JSON.stringify(rows.slice(0, 5 - previewed), null, 2));
+        previewed += rows.length;
+      }
+      return rows.length;
+    }
+    const { inserted } = await saveTenders(rows);
+    running += inserted;
+    console.log(`  …saved +${inserted} (running total ${running})`);
+    return inserted;
+  };
 
-  if (dry) {
-    console.log("\nSample (first 5):");
-    console.log(JSON.stringify(tenders.slice(0, 5), null, 2));
-    console.log(`\nDRY_RUN: nothing written. ${tenders.length} candidates.`);
-    return;
-  }
+  console.log(
+    `Scraping ${which} (pages=${pages}, startPage=${startPage}, dry=${dry})…`,
+  );
+  const total = await fn(pages, existing, onBatch, startPage);
 
-  const { inserted, skipped } = await saveTenders(tenders);
-  console.log(`Done: ${inserted} new published, ${skipped} already in DB.`);
+  console.log(
+    dry
+      ? `DRY_RUN: nothing written. ~${total} candidates.`
+      : `Done: ${total} new published.`,
+  );
 }
 
 main().catch((err) => {

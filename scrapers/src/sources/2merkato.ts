@@ -98,16 +98,16 @@ function publishedOn(sources: RawSource[] | null): string | null {
   return dates.length ? [...new Set(dates)].join(", ") : null;
 }
 
-// maxPages is a safety cap; the crawl normally auto-stops well before it once
-// open tenders run out (~300 pages). STOP_AFTER_CLOSED = how many consecutive
-// all-closed pages to see before concluding there are no more open tenders.
+// Scrapes open AND closed tenders. Crawls `maxPages` list pages starting at
+// `startPage`, or until the archive ends. Results are flushed to `onBatch` in
+// batches DURING the crawl, so a timeout/cancel still persists progress (and
+// the next run skips what's saved). Returns the total rows flushed.
 export async function scrape2merkato(
   maxPages = 500,
   existingUrls: Set<string> = new Set(),
-): Promise<TenderInput[]> {
-  // Scrapes open AND closed tenders — pages until maxPages (the safety cap) or
-  // the archive ends. maxPages is the real limiter now that we don't stop at
-  // the end of open tenders.
+  onBatch?: (rows: TenderInput[]) => Promise<number>,
+  startPage = 1,
+): Promise<number> {
   let stopped = false;
   const username = process.env.MERKATO_USERNAME;
   const password = process.env.MERKATO_PASSWORD;
@@ -122,8 +122,18 @@ export async function scrape2merkato(
     );
   }
 
-  const results: TenderInput[] = [];
   const unmapped = new Set<string>();
+
+  // Flush scraped rows in batches so progress survives a timeout/cancel.
+  const BATCH_SIZE = 50;
+  let buffer: TenderInput[] = [];
+  let totalFlushed = 0;
+  const flush = async () => {
+    if (buffer.length === 0) return;
+    const batch = buffer;
+    buffer = [];
+    totalFlushed += onBatch ? await onBatch(batch) : batch.length;
+  };
 
   const crawler = new CheerioCrawler({
     // Gentle: one request at a time, ~500ms apart (120/min). 2merkato 429s
@@ -174,7 +184,8 @@ export async function scrape2merkato(
             toStr(t.bid_document_price) ?? base.bid_document_price;
           base.published_on = publishedOn(t.sources) ?? base.published_on;
         }
-        results.push(base);
+        buffer.push(base);
+        if (buffer.length >= BATCH_SIZE) await flush();
         return;
       }
 
@@ -214,8 +225,10 @@ export async function scrape2merkato(
       }
       log.info(`page ${pageNum}: ${list.length} rows, ${newOnPage} new`);
 
-      // Page until the archive ends (empty page) or we hit the maxPages cap.
-      if (!stopped && list.length > 0 && pageNum < maxPages) {
+      // Page until the archive ends (empty page) or we've crawled maxPages
+      // pages this run (relative to startPage).
+      const pagesCrawled = pageNum - startPage + 1;
+      if (!stopped && list.length > 0 && pagesCrawled < maxPages) {
         await addRequests(
           [{ url: `${BASE}/tenders?status=open&page=${pageNum + 1}`, label: "list" }],
           { forefront: true },
@@ -233,13 +246,14 @@ export async function scrape2merkato(
     },
   });
 
-  // Start at page 1; each list page chains the next until open tenders run out.
-  await crawler.run([`${BASE}/tenders?status=open&page=1`]);
+  // Start at startPage; each list page chains the next until the cap/end.
+  await crawler.run([`${BASE}/tenders?status=open&page=${startPage}`]);
+  await flush(); // persist the final partial batch
 
   if (unmapped.size > 0) {
     console.log(
       `2merkato: ${unmapped.size} category name(s) had no super-category mapping (left uncategorized): ${[...unmapped].slice(0, 15).join(", ")}`,
     );
   }
-  return results;
+  return totalFlushed;
 }
