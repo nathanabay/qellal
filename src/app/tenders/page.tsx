@@ -76,7 +76,7 @@ export default async function TendersPage() {
 
       {result.state === "not-configured" && (
         <div className="rounded-xl border border-dashed border-warn/40 bg-warn-soft p-4 text-sm text-warn">
-          <p className="font-semibold">Supabase isn&apos;t connected yet.</p>
+          <p className="font-semibold">Supabase isn’t connected yet.</p>
           <p className="mt-1">
             Add your keys to <code className="font-mono">.env.local</code>, then
             reload.
@@ -86,7 +86,7 @@ export default async function TendersPage() {
 
       {result.state === "error" && (
         <div className="rounded-xl border border-urgent/40 bg-urgent-soft p-4 text-sm text-urgent">
-          <p className="font-semibold">Couldn&apos;t load tenders.</p>
+          <p className="font-semibold">Couldn’t load tenders.</p>
           <p className="mt-1">{result.message}</p>
         </div>
       )}

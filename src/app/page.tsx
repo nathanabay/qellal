@@ -48,7 +48,7 @@ const features = [
   },
   {
     title: "Market intelligence",
-    body: "See who tenders most, activity by sector and month, and similar past tenders — insight 2merkato doesn't give you.",
+    body: "See who tenders most, activity by sector and month, and similar past tenders — insight 2merkato doesn’t give you.",
   },
 ];
 

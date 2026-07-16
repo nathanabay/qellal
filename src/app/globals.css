@@ -55,26 +55,47 @@
   --shadow-lift: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.05);
 }
 
+/* Light-only app: tell the UA so form controls/scrollbars match. */
+html {
+  color-scheme: light;
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans), system-ui, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Clear notches on the sides in installed (standalone) PWA mode. */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
-/* Headings use the display font with tighter tracking. */
+/* Headings use the display font with tighter tracking. Balance wrapping so
+   short headings don't leave a single orphan word on a line at 375px. */
 h1,
 h2,
 h3,
 .font-heading {
   font-family: var(--font-heading), var(--font-sans), system-ui, sans-serif;
   letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
-/* Interactive affordance. */
+/* Interactive affordance + mobile tap tuning (kills the 300ms tap delay and
+   the default grey tap-flash on low-end Android). */
 button:not(:disabled),
-[role="button"] {
-  cursor: pointer;
+[role="button"],
+a,
+label,
+select,
+summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Contain scroll chaining inside scrollable panels/description tables. */
+.tender-desc .tw {
+  overscroll-behavior: contain;
 }
 
 /* Respect reduced motion. */

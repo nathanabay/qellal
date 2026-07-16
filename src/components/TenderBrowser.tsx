@@ -254,7 +254,7 @@ export function TenderBrowser({
       )}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted tabular-nums" role="status" aria-live="polite">
           {filtered.length} {filtered.length === 1 ? "tender" : "tenders"}
           {hasFilters ? " match" : ""}
         </p>

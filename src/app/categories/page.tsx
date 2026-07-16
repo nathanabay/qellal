@@ -30,24 +30,32 @@ export default async function CategoriesPage() {
         Jump straight to open tenders in your line of work.
       </p>
 
-      <ul className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {categories.map((c) => {
-          const open = counts.categories[c.id] ?? 0;
-          return (
-            <li key={c.id}>
-              <Link
-                href={`/tenders?category=${c.slug}`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                <span className="font-medium text-ink">{c.name}</span>
-                <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary">
-                  {open} open
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      {categories.length === 0 ? (
+        <p className="mt-5 rounded-xl border border-border bg-surface p-6 text-center text-sm text-muted">
+          No sectors to show yet.
+        </p>
+      ) : (
+        <ul className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {categories.map((c) => {
+            const open = counts.categories[c.id] ?? 0;
+            return (
+              <li key={c.id}>
+                <Link
+                  href={`/tenders?category=${c.slug}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <span className="min-w-0 truncate font-medium text-ink">
+                    {c.name}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary tabular-nums">
+                    {open} open
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </main>
   );
 }

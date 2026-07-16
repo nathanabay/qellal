@@ -19,7 +19,7 @@ export default function ResetPage() {
         Reset password
       </h1>
       <p className="mt-1 text-sm text-muted">
-        We&apos;ll email you a link to set a new password.
+        We’ll email you a link to set a new password.
       </p>
 
       {state.message ? (
@@ -33,6 +33,8 @@ export default function ResetPage() {
             type="email"
             required
             autoComplete="email"
+            spellCheck={false}
+            autoCorrect="off"
             placeholder="you@example.com"
             className={inputClass}
             aria-label="Email"
@@ -43,7 +45,7 @@ export default function ResetPage() {
             </p>
           )}
           <SubmitButton pendingText="Sending…" className="w-full">
-            Send reset link
+            Send Reset Link
           </SubmitButton>
         </form>
       )}

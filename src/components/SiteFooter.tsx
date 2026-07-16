@@ -17,7 +17,7 @@ function FooterCol({
           <li key={l.label}>
             <Link
               href={l.href}
-              className="text-slate-300 transition-colors hover:text-white"
+              className="rounded text-slate-300 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
               {l.label}
             </Link>

@@ -50,7 +50,7 @@ export default async function EntitiesPage() {
                   <span className="min-w-0 truncate font-medium text-ink">
                     <span className="text-muted">{i + 1}.</span> {e.entity}
                   </span>
-                  <span className="shrink-0 text-xs text-muted">
+                  <span className="shrink-0 text-xs text-muted tabular-nums">
                     {e.tender_count} total ·{" "}
                     <span className="font-semibold text-primary">
                       {e.open_count} open

@@ -28,7 +28,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f172a",
+  // Match the light canvas the app actually renders (not dark navy), and opt
+  // into safe-area insets so the sticky header/footer clear notches in the PWA.
+  themeColor: "#f8fafc",
+  colorScheme: "light",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

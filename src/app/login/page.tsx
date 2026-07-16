@@ -25,6 +25,8 @@ export default function LoginPage() {
           type="email"
           required
           autoComplete="email"
+          spellCheck={false}
+          autoCorrect="off"
           placeholder="you@example.com"
           className={inputClass}
           aria-label="Email"
@@ -43,7 +45,7 @@ export default function LoginPage() {
           </p>
         )}
         <SubmitButton pendingText="Signing in…" className="w-full">
-          Sign in
+          Sign In
         </SubmitButton>
       </form>
 

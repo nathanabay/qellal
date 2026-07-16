@@ -50,6 +50,8 @@ export default function SignupPage() {
             type="email"
             required
             autoComplete="email"
+            spellCheck={false}
+            autoCorrect="off"
             placeholder="you@example.com"
             className={inputClass}
             aria-label="Email"
@@ -69,7 +71,7 @@ export default function SignupPage() {
             </p>
           )}
           <SubmitButton pendingText="Creating account…" className="w-full">
-            Create account
+            Create Account
           </SubmitButton>
           <p className="text-center text-xs text-muted">
             Free · No credit card · Cancel anytime

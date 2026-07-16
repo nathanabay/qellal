@@ -58,7 +58,7 @@ export default async function EntityPage({ params }: { params: Params }) {
         </Link>{" "}
         <span aria-hidden="true">/</span> {name}
       </nav>
-      <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+      <h1 className="mt-1 break-words font-heading text-2xl font-bold tracking-tight text-ink sm:text-3xl">
         {name}
       </h1>
 

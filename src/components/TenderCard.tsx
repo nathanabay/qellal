@@ -39,9 +39,11 @@ export function TenderCard({
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <h2 className="font-semibold leading-snug text-ink">{tender.title}</h2>
+        <h2 className="min-w-0 break-words font-semibold leading-snug text-ink">
+          {tender.title}
+        </h2>
         <span
-          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${badgeClass}`}
+          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${badgeClass}`}
         >
           {d <= 0 ? "Closed" : `${d}d left`}
         </span>

@@ -266,7 +266,7 @@ export default async function AccountPage({
               (connect your chat below)
             </span>
           </label>
-          <SubmitButton pendingText="Saving…">Save preferences</SubmitButton>
+          <SubmitButton pendingText="Saving…">Save Preferences</SubmitButton>
         </form>
 
         {/* Pause controls (F7) */}
@@ -408,12 +408,13 @@ export default async function AccountPage({
           <input
             name="keyword"
             type="text"
+            autoComplete="off"
             placeholder="Keyword (optional)"
             className={inputClass}
             aria-label="Keyword"
           />
           <div className="sm:col-span-3">
-            <SubmitButton pendingText="Adding…">Add alert</SubmitButton>
+            <SubmitButton pendingText="Adding…">Add Alert</SubmitButton>
           </div>
         </form>
       </section>

@@ -38,7 +38,7 @@ export default function UpdatePasswordPage() {
           </p>
         )}
         <SubmitButton pendingText="Saving…" className="w-full">
-          Update password
+          Update Password
         </SubmitButton>
       </form>
     </main>

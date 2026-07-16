@@ -12,10 +12,12 @@ export const metadata = {
     "Ethiopian tender activity by sector, region and month — plus the most active buyers.",
 };
 
+const monthFmt = new Intl.DateTimeFormat(undefined, { month: "short" });
 function monthLabel(ym: string) {
   const [y, m] = ym.split("-");
-  const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${names[Number(m) - 1] ?? m} ${y.slice(2)}`;
+  // Use day 15 to avoid any timezone month-boundary drift.
+  const name = monthFmt.format(new Date(Number(y), Number(m) - 1, 15));
+  return `${name} ${y.slice(2)}`;
 }
 
 export default async function InsightsPage() {
@@ -46,7 +48,8 @@ export default async function InsightsPage() {
       </h1>
       <p className="mt-1 text-sm text-muted">
         Where the activity is — by month, sector and buyer. Built from the full
-        archive, something 2merkato doesn&apos;t show you.
+        archive, something <span translate="no">2merkato</span> doesn’t show
+        you.
       </p>
 
       {/* Seasonality */}
@@ -58,6 +61,10 @@ export default async function InsightsPage() {
           <div
             className="mt-3 flex items-stretch gap-1.5"
             style={{ height: "120px" }}
+            role="img"
+            aria-label={`Tenders published per month: ${months
+              .map((m) => `${monthLabel(m.month)}, ${m.tender_count}`)
+              .join("; ")}`}
           >
             {months.map((m) => (
               <div
@@ -71,10 +78,11 @@ export default async function InsightsPage() {
                       height: `${(m.tender_count / monthMax) * 100}%`,
                       minHeight: m.tender_count > 0 ? "2px" : "0",
                     }}
-                    title={`${m.tender_count} tenders`}
                   />
                 </div>
-                <span className="text-[10px] text-muted">{monthLabel(m.month)}</span>
+                <span className="text-[10px] text-muted tabular-nums">
+                  {monthLabel(m.month)}
+                </span>
               </div>
             ))}
           </div>
@@ -103,7 +111,7 @@ export default async function InsightsPage() {
               >
                 <div className="flex justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate text-ink">{s.name}</span>
-                  <span className="shrink-0 text-muted">{s.open}</span>
+                  <span className="shrink-0 text-muted tabular-nums">{s.open}</span>
                 </div>
                 <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-canvas">
                   <div
@@ -134,7 +142,7 @@ export default async function InsightsPage() {
               >
                 {e.entity}
               </Link>
-              <span className="shrink-0 text-muted">
+              <span className="shrink-0 text-muted tabular-nums">
                 {e.tender_count} · {e.open_count} open
               </span>
             </li>
