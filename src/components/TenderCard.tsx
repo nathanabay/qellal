@@ -12,6 +12,8 @@ export type TenderCardData = {
   source_name: string;
   publishing_entity: string | null;
   category_id: number | null;
+  bid_bond?: string | null;
+  published_date?: string | null;
 };
 
 export function TenderCard({
@@ -47,6 +49,11 @@ export function TenderCard({
         {tender.region ?? "Ethiopia"}
         {tender.publishing_entity ? ` · ${tender.publishing_entity}` : ""}
       </p>
+      {tender.bid_bond ? (
+        <span className="mt-2 inline-flex items-center rounded-full bg-canvas px-2 py-0.5 text-xs font-medium text-muted">
+          Bid bond: {tender.bid_bond}
+        </span>
+      ) : null}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted">
         <span>
           Deadline:{" "}

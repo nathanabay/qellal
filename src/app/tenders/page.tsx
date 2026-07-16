@@ -15,8 +15,10 @@ export const metadata = {
 };
 
 export default async function TendersPage() {
+  // Cap the client payload so the page stays fast on 3G even as the archive
+  // grows; deep-archive browsing goes through the sector/region hubs.
   const [result, categories, regions] = await Promise.all([
-    getPublishedTenders({ sort: "recent" }),
+    getPublishedTenders({ sort: "recent", limit: 1500 }),
     getCategories(),
     getDistinctRegions(),
   ]);
@@ -36,6 +38,20 @@ export default async function TendersPage() {
         <p className="mt-1 text-sm text-muted">
           Filter instantly, then save your search as an alert.
         </p>
+        <nav className="mt-3 flex flex-wrap gap-2 text-sm">
+          <a
+            href="/categories"
+            className="inline-flex min-h-9 items-center rounded-lg border border-border px-3 font-medium text-primary hover:bg-primary-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Browse by sector
+          </a>
+          <a
+            href="/regions"
+            className="inline-flex min-h-9 items-center rounded-lg border border-border px-3 font-medium text-primary hover:bg-primary-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Browse by region
+          </a>
+        </nav>
       </header>
 
       {result.state === "not-configured" && (

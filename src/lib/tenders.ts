@@ -25,7 +25,7 @@ type GetOptions = {
 };
 
 const COLUMNS =
-  "id,title,region,deadline,source_name,publishing_entity,category_id";
+  "id,title,region,deadline,published_date,source_name,publishing_entity,category_id,bid_bond";
 
 export async function getPublishedTenders(
   opts: GetOptions = {},
@@ -135,6 +135,44 @@ export async function getCategories(): Promise<Category[]> {
     return [];
   }
   return data ?? [];
+}
+
+// Open-tender counts per category id and per region — powers the "Browse by
+// sector / region" hub pages. Only small columns are fetched, so the payload
+// stays light even with a large archive.
+export type FacetCounts = {
+  categories: Record<number, number>;
+  regions: Record<string, number>;
+};
+
+export async function getOpenTenderFacetCounts(): Promise<FacetCounts> {
+  const empty: FacetCounts = { categories: {}, regions: {} };
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return empty;
+
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from("tenders")
+    .select("category_id,region,deadline")
+    .eq("status", "published")
+    .gte("deadline", today); // open only
+
+  if (error) {
+    console.error("facet counts failed:", error.message);
+    return empty;
+  }
+  const rows = (data ?? []) as {
+    category_id: number | null;
+    region: string | null;
+  }[];
+  const categories: Record<number, number> = {};
+  const regions: Record<string, number> = {};
+  for (const r of rows) {
+    if (r.category_id != null)
+      categories[r.category_id] = (categories[r.category_id] ?? 0) + 1;
+    if (r.region) regions[r.region] = (regions[r.region] ?? 0) + 1;
+  }
+  return { categories, regions };
 }
 
 // Region is free-text on tenders — derive the filter options from the data
