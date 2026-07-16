@@ -116,3 +116,35 @@ button:not(:disabled),
   font-weight: 600;
   margin-top: 0.75rem;
 }
+
+/* Tables and alignment inside a rendered 2merkato description. */
+.tender-desc .tw {
+  overflow-x: auto;
+  margin: 0.75rem 0;
+  -webkit-overflow-scrolling: touch;
+}
+.tender-desc table {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 0.85rem;
+}
+.tender-desc th,
+.tender-desc td {
+  border: 1px solid var(--color-border);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+.tender-desc th {
+  font-weight: 600;
+  background: var(--color-canvas);
+}
+.tender-desc [style*="text-align:center"] {
+  text-align: center;
+}
+.tender-desc [style*="text-align:right"] {
+  text-align: right;
+}
+.tender-desc [style*="text-align:justify"] {
+  text-align: justify;
+}

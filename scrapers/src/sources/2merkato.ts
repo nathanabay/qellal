@@ -77,18 +77,42 @@ function firstCategory(
 }
 
 // Preserve 2merkato's description formatting by keeping a safe whitelist of
-// block/inline tags (all attributes, scripts, links stripped) so the detail
-// page renders it the way 2merkato does.
-const ALLOWED_TAGS = /^\/?(?:p|br|strong|b|em|i|u|ul|ol|li|h[3-6]|span)$/i;
+// tags — including TABLES (auction/bid schedules) — so the detail page renders
+// it the way 2merkato does. All attributes are dropped except a hardened set:
+// text-align (closed value set) and numeric colspan/rowspan. No scripts/links.
+const ALLOWED_TAGS =
+  /^\/?(?:p|br|strong|b|em|i|u|ul|ol|li|h[3-6]|span|table|thead|tbody|tfoot|tr|td|th|caption|colgroup|col)$/i;
+
+function safeAlign(attrs: string): string {
+  const m = attrs.match(/text-align\s*:\s*(left|right|center|justify)/i);
+  return m ? ` style="text-align:${m[1].toLowerCase()}"` : "";
+}
+function safeSpans(attrs: string): string {
+  let out = "";
+  const cs = attrs.match(/colspan\s*=\s*["']?(\d{1,3})/i);
+  const rs = attrs.match(/rowspan\s*=\s*["']?(\d{1,3})/i);
+  if (cs) out += ` colspan="${cs[1]}"`;
+  if (rs) out += ` rowspan="${rs[1]}"`;
+  return out;
+}
+
 function formatDescription(html: string | null | undefined): string | null {
   if (!html) return null;
-  const s = html
+  let s = html
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(script|style|iframe|object|embed|link|meta)\b[\s\S]*?<\/\1>/gi, "")
     .replace(/<(script|style|iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "")
-    .replace(/<(\/?)([a-zA-Z0-9]+)\b[^>]*>/g, (_m, slash, tag) =>
-      ALLOWED_TAGS.test(`${slash}${tag}`) ? `<${slash}${tag.toLowerCase()}>` : "",
-    )
+    .replace(/<(\/?)([a-zA-Z0-9]+)\b([^>]*)>/g, (_m, slash, tag, attrs) => {
+      const t = tag.toLowerCase();
+      if (!ALLOWED_TAGS.test(`${slash}${t}`)) return "";
+      if (slash) return `</${t}>`;
+      const align = /^(p|td|th|table)$/.test(t) ? safeAlign(attrs) : "";
+      const spans = t === "td" || t === "th" ? safeSpans(attrs) : "";
+      return `<${t}${align}${spans}>`;
+    })
+    // Wrap tables so wide ones scroll horizontally on mobile.
+    .replace(/<table(\s[^>]*)?>/g, '<div class="tw"><table$1>')
+    .replace(/<\/table>/g, "</table></div>")
     .replace(/(\s*\n\s*){3,}/g, "\n\n")
     .trim();
   return s || null;
