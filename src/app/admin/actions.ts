@@ -43,21 +43,37 @@ export async function createTender(formData: FormData) {
   if (!title || !deadline || !source_name) return;
 
   const categoryRaw = String(formData.get("category_id") ?? "");
-  const { error } = await supabase.from("tenders").insert({
-    title,
-    deadline,
-    source_name,
-    description: String(formData.get("description") ?? "").trim() || null,
-    category_id: categoryRaw ? Number(categoryRaw) : null,
-    region: String(formData.get("region") ?? "").trim() || null,
-    publishing_entity:
-      String(formData.get("publishing_entity") ?? "").trim() || null,
-    source_url: String(formData.get("source_url") ?? "").trim() || null,
-    // Manual entries go to the review queue; scraped tenders auto-publish.
-    status: "pending_review",
-    created_by: "admin",
-  });
-  if (error) console.error("create tender failed:", error.message);
+  const categoryId = categoryRaw ? Number(categoryRaw) : null;
+  const { data: inserted, error } = await supabase
+    .from("tenders")
+    .insert({
+      title,
+      deadline,
+      source_name,
+      description: String(formData.get("description") ?? "").trim() || null,
+      category_id: categoryId,
+      region: String(formData.get("region") ?? "").trim() || null,
+      publishing_entity:
+        String(formData.get("publishing_entity") ?? "").trim() || null,
+      source_url: String(formData.get("source_url") ?? "").trim() || null,
+      // Manual entries go to the review queue; scraped tenders auto-publish.
+      status: "pending_review",
+      created_by: "admin",
+    })
+    .select("id")
+    .single();
+  if (error) {
+    console.error("create tender failed:", error.message);
+    return;
+  }
+  // Mirror the chosen category into the many-to-many join so the detail page
+  // chips, category filter and facet counts all include this tender.
+  if (inserted && categoryId != null) {
+    const { error: linkError } = await supabase
+      .from("tender_categories")
+      .insert({ tender_id: inserted.id, category_id: categoryId });
+    if (linkError) console.error("link category failed:", linkError.message);
+  }
   revalidatePath("/admin");
   revalidatePath("/tenders");
 }

@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { getTenderById, getTenderCategories } from "@/lib/tenders";
+import {
+  getCategories,
+  getTenderById,
+  getTenderCategories,
+} from "@/lib/tenders";
 import { getSimilarTenders } from "@/lib/insights";
 import { daysLeft, formatDate } from "@/lib/format";
 import { entityHref } from "@/lib/entity";
@@ -49,12 +53,16 @@ export default async function TenderDetailPage({
     saved = Boolean(data);
   }
 
-  const tenderCats = await getTenderCategories(tender.id);
-  const catIds = tenderCats.length
-    ? tenderCats.map((c) => c.id)
-    : tender.category_id != null
-      ? [tender.category_id]
-      : [];
+  // Prefer the many-to-many join; fall back to the primary category_id so
+  // tenders without join rows (e.g. manually-added ones) still show a category.
+  const joinCats = await getTenderCategories(tender.id);
+  const tenderCats =
+    joinCats.length > 0
+      ? joinCats
+      : tender.category_id != null
+        ? (await getCategories()).filter((c) => c.id === tender.category_id)
+        : [];
+  const catIds = tenderCats.map((c) => c.id);
   const similar = await getSimilarTenders(catIds, tender.id, 4);
 
   const d = daysLeft(tender.deadline);
