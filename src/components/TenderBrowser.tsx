@@ -287,9 +287,9 @@ export function TenderBrowser({
         </div>
       ) : (
         <>
-          <ul className="space-y-3">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pageItems.map((t) => (
-              <li key={t.id}>
+              <li key={t.id} className="flex">
                 <TenderCard
                   tender={t}
                   showSave

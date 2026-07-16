@@ -3,7 +3,7 @@
 import { useFormStatus } from "react-dom";
 import { SpinnerIcon } from "./icons";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "invert";
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
@@ -14,13 +14,17 @@ type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 // handle a11y/affordance; useFormStatus disables + shows a spinner while the
 // server action runs (critical feedback on slow 3G).
 const base =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-primary text-white hover:bg-primary-hover",
-  secondary: "border border-border text-ink hover:bg-primary-soft hover:text-primary",
-  ghost: "font-medium text-muted hover:bg-primary-soft hover:text-primary",
-  danger: "border border-border text-urgent hover:bg-urgent-soft",
+  primary: "bg-primary text-white hover:bg-primary-hover focus-visible:ring-primary",
+  secondary:
+    "border border-border text-ink hover:bg-primary-soft hover:text-primary focus-visible:ring-primary",
+  ghost:
+    "font-medium text-muted hover:bg-primary-soft hover:text-primary focus-visible:ring-primary",
+  danger: "border border-border text-urgent hover:bg-urgent-soft focus-visible:ring-primary",
+  // Paper-on-ink — for use on dark ink surfaces; light focus ring stays visible.
+  invert: "bg-canvas text-ink hover:bg-hairline focus-visible:ring-canvas",
 };
 
 export function SubmitButton({

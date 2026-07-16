@@ -58,32 +58,27 @@ export default async function TenderDetailPage({
   const similar = await getSimilarTenders(catIds, tender.id, 4);
 
   const d = daysLeft(tender.deadline);
-  const urgency =
-    d <= 0
-      ? { label: "Closed", cls: "bg-urgent-soft text-urgent" }
-      : d <= 3
-        ? { label: `${d} days left`, cls: "bg-urgent-soft text-urgent" }
-        : d <= 7
-          ? { label: `${d} days left`, cls: "bg-warn-soft text-warn" }
-          : { label: `${d} days left`, cls: "bg-primary-soft text-primary" };
+  const closed = d <= 0;
+  // Red/amber mean TIME ONLY; neutral & closed states stay paper on the ink card.
+  const countdownColor = closed
+    ? "text-canvas/60"
+    : d <= 3
+      ? "text-urgent"
+      : d <= 7
+        ? "text-warn"
+        : "text-canvas";
 
-  const meta: Array<{ label: string; value: string }> = [];
-  if (tenderCats.length > 0)
-    meta.push({
-      label: tenderCats.length > 1 ? "Categories" : "Category",
-      value: tenderCats.map((c) => c.name).join(", "),
-    });
-  if (tender.region) meta.push({ label: "Region", value: tender.region });
-  if (tender.publishing_entity)
-    meta.push({ label: "Publishing entity", value: tender.publishing_entity });
+  // Facts shown in the ink hero (mono). Region/entity/category live in the left
+  // column, so the deadline is stated exactly once — in the hero.
+  const facts: Array<{ label: string; value: string }> = [];
   if (tender.published_date)
-    meta.push({ label: "Published", value: formatDate(tender.published_date) });
+    facts.push({ label: "Published", value: formatDate(tender.published_date) });
   if (tender.published_on)
-    meta.push({ label: "Published on", value: tender.published_on });
-  if (tender.bid_bond)
-    meta.push({ label: "Bid bond", value: tender.bid_bond });
+    facts.push({ label: "Published on", value: tender.published_on });
+  if (tender.bid_bond) facts.push({ label: "Bid bond", value: tender.bid_bond });
   if (tender.bid_document_price)
-    meta.push({ label: "Document price", value: tender.bid_document_price });
+    facts.push({ label: "Doc price", value: tender.bid_document_price });
+  facts.push({ label: "Source", value: tender.source_name });
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
@@ -98,7 +93,7 @@ export default async function TenderDetailPage({
         </Link>
       </nav>
 
-      <div className="mt-5 lg:grid lg:grid-cols-[1fr_20rem] lg:gap-8">
+      <div className="mt-5 lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
         {/* Main column */}
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -205,23 +200,26 @@ export default async function TenderDetailPage({
           </div>
         </div>
 
-        {/* Sticky key-facts sidebar */}
+        {/* Sticky ink deadline hero — the countdown is the loudest element. */}
         <aside className="mt-8 lg:mt-0">
-          <div className="space-y-4 lg:sticky lg:top-20">
-            {/* Deadline card — the #1 anxiety, front and centre */}
-            <div className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)]">
-              <span
-                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${urgency.cls}`}
+          <div className="lg:sticky lg:top-6">
+            <div className="rounded-2xl bg-ink p-6 text-canvas shadow-[var(--shadow-lift)]">
+              <p className="font-mono text-xs uppercase tracking-widest text-canvas/60">
+                {closed ? "Closed" : "Closes in"}
+              </p>
+              <div
+                className={`mt-2 font-mono font-semibold leading-none tabular-nums ${countdownColor}`}
+                style={{ fontSize: "72px" }}
               >
-                {urgency.label}
-              </span>
-              <div className="mt-3">
-                <div className="font-heading text-2xl font-bold text-ink">
-                  {formatDate(tender.deadline)}
-                </div>
-                <div className="text-sm text-muted">Submission deadline</div>
+                {closed ? "—" : d}
               </div>
-              <div className="mt-5">
+              <p className="mt-2 font-mono text-xs uppercase tracking-wide text-canvas/60">
+                {closed
+                  ? `Closed ${formatDate(tender.deadline)}`
+                  : `${d === 1 ? "day" : "days"} · closes ${formatDate(tender.deadline)}`}
+              </p>
+
+              <div className="mt-6">
                 {user ? (
                   <form action={toggleSaveTender}>
                     <input type="hidden" name="tender_id" value={tender.id} />
@@ -231,48 +229,49 @@ export default async function TenderDetailPage({
                       value={saved ? "1" : "0"}
                     />
                     <SubmitButton
-                      variant="secondary"
-                      className={`w-full ${saved ? "border-primary bg-primary-soft text-primary" : ""}`}
-                      aria-label={saved ? "Remove from saved" : "Save tender"}
+                      variant="invert"
+                      className="w-full"
+                      aria-label={saved ? "Remove from saved" : "Save tender and get alerts"}
                     >
                       <StarIcon filled={saved} />
-                      {saved ? "Saved" : "Save this tender"}
+                      {saved ? "Saved" : "Save & get alerts"}
                     </SubmitButton>
                   </form>
                 ) : (
                   <Link
                     href="/login"
-                    className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-border px-4 text-sm font-medium text-primary hover:bg-primary-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-canvas/30 px-4 text-sm font-medium text-canvas hover:bg-canvas/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-canvas"
                   >
                     Sign in to save
                   </Link>
                 )}
               </div>
               {d > 0 && (
-                <p className="mt-2 text-xs text-muted">
+                <p className="mt-3 text-xs text-canvas/70">
                   {saved
                     ? "You’ll be reminded 7, 3 & 1 days before it closes."
                     : "Save it to get 7, 3 & 1-day deadline reminders."}
                 </p>
               )}
-            </div>
 
-            {/* Facts */}
-            {meta.length > 0 && (
-              <dl className="divide-y divide-border rounded-2xl border border-border bg-surface px-5 text-sm">
-                {meta.map((m) => (
-                  <div
-                    key={m.label}
-                    className="flex items-center justify-between gap-3 py-3"
-                  >
-                    <dt className="text-muted">{m.label}</dt>
-                    <dd className="text-right font-medium text-ink">
-                      {m.value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            )}
+              {facts.length > 0 && (
+                <dl className="mt-5 space-y-2 border-t border-canvas/15 pt-4 font-mono text-xs">
+                  {facts.map((m) => (
+                    <div
+                      key={m.label}
+                      className="flex items-start justify-between gap-3"
+                    >
+                      <dt className="shrink-0 uppercase tracking-wide text-canvas/50">
+                        {m.label}
+                      </dt>
+                      <dd className="min-w-0 break-words text-right text-canvas">
+                        {m.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </div>
           </div>
         </aside>
       </div>

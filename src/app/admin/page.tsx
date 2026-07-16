@@ -35,15 +35,17 @@ const inputClass =
 function DeadlinePill({ deadline }: { deadline: string }) {
   const d = daysLeft(deadline);
   const cls =
-    d <= 3
-      ? "bg-urgent-soft text-urgent"
-      : d <= 7
-        ? "bg-warn-soft text-warn"
-        : "bg-primary-soft text-primary";
+    d <= 0
+      ? "bg-canvas text-muted"
+      : d <= 3
+        ? "bg-urgent-soft text-urgent"
+        : d <= 7
+          ? "bg-warn-soft text-warn"
+          : "bg-canvas text-muted"; // neutral time state — never primary
   return (
-    <span className="whitespace-nowrap">
+    <span className="whitespace-nowrap font-mono">
       {formatDate(deadline)}{" "}
-      <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${cls}`}>
+      <span className={`rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums ${cls}`}>
         {d <= 0 ? "closed" : `${d}d`}
       </span>
     </span>
@@ -93,10 +95,10 @@ export default async function AdminPage() {
     id != null ? (categories.find((c) => c.id === id)?.name ?? "—") : "—";
 
   const stats = [
-    { label: "Pending review", value: pending.length, Icon: InboxIcon, tone: "bg-warn-soft text-warn" },
-    { label: "Published", value: publishedCount ?? 0, Icon: CheckCircleIcon, tone: "bg-primary-soft text-primary" },
-    { label: "Total tenders", value: totalCount, Icon: DocumentIcon, tone: "bg-primary-soft text-primary" },
-    { label: "Categories", value: categories.length, Icon: TagIcon, tone: "bg-primary-soft text-primary" },
+    { label: "Pending review", value: pending.length, Icon: InboxIcon, emphasis: true },
+    { label: "Published", value: publishedCount ?? 0, Icon: CheckCircleIcon, emphasis: false },
+    { label: "Total tenders", value: totalCount, Icon: DocumentIcon, emphasis: false },
+    { label: "Categories", value: categories.length, Icon: TagIcon, emphasis: false },
   ];
 
   return (
@@ -118,24 +120,32 @@ export default async function AdminPage() {
             </p>
           </div>
 
-          {/* KPI stat cards (ProCard-style) */}
+          {/* KPI stat cards — Pending review is the single emphasised tile. */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {stats.map((s) => (
               <div
                 key={s.label}
-                className="rounded-xl border border-border bg-surface p-4"
+                className={`rounded-xl border p-4 ${
+                  s.emphasis
+                    ? "border-ink bg-ink"
+                    : "border-border bg-surface"
+                }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-muted">
+                  <span
+                    className={`text-xs font-medium ${s.emphasis ? "text-canvas/70" : "text-muted"}`}
+                  >
                     {s.label}
                   </span>
-                  <span
-                    className={`flex h-7 w-7 items-center justify-center rounded-lg ${s.tone}`}
-                  >
-                    <s.Icon className="h-4 w-4" />
-                  </span>
+                  <s.Icon
+                    className={`h-4 w-4 ${s.emphasis ? "text-canvas/70" : "text-muted"}`}
+                  />
                 </div>
-                <p className="mt-2 font-heading text-2xl font-bold tabular-nums text-ink">
+                <p
+                  className={`mt-2 font-heading text-2xl font-bold tabular-nums ${
+                    s.emphasis ? "text-urgent" : "text-ink"
+                  }`}
+                >
                   {s.value}
                 </p>
               </div>
@@ -149,7 +159,7 @@ export default async function AdminPage() {
           >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-sm font-semibold text-ink">Pending review</h2>
-              <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-semibold text-warn">
+              <span className="rounded-full bg-ink px-2 py-0.5 text-xs font-semibold tabular-nums text-canvas">
                 {pending.length}
               </span>
             </div>

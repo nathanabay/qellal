@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signup, type AuthState } from "@/app/auth/actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { AuthBrandPanel } from "@/components/AuthBrandPanel";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary";
@@ -15,8 +16,11 @@ export default function SignupPage() {
   const [state, action] = useActionState(signup, initial);
 
   return (
-    <main className="mx-auto w-full max-w-sm px-4 py-12">
-      <h1 className="text-2xl font-bold tracking-tight text-ink">
+    <main className="mx-auto w-full max-w-4xl px-4 py-12">
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] lg:grid lg:min-h-[420px] lg:grid-cols-2">
+        <AuthBrandPanel />
+        <div className="p-6 sm:p-8">
+      <h1 className="font-heading text-2xl font-bold tracking-tight text-ink">
         Create your account
       </h1>
       <p className="mt-1 text-sm text-muted">
@@ -85,6 +89,8 @@ export default function SignupPage() {
           Sign in
         </Link>
       </p>
+        </div>
+      </div>
     </main>
   );
 }

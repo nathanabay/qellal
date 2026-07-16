@@ -1,21 +1,28 @@
 import type { Metadata, Viewport } from "next";
-import { Lexend, Source_Sans_3 } from "next/font/google";
+import { Space_Grotesk, Hanken_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
-const lexend = Lexend({
-  variable: "--font-lexend",
+const grotesk = Space_Grotesk({
+  variable: "--font-grotesk",
   subsets: ["latin"],
   weight: ["500", "600", "700"],
   display: "swap",
 });
 
-const sourceSans = Source_Sans_3({
-  variable: "--font-source",
+const hanken = Hanken_Grotesk({
+  variable: "--font-hanken",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const plex = IBM_Plex_Mono({
+  variable: "--font-plex",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
   display: "swap",
 });
 
@@ -28,9 +35,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Match the light canvas the app actually renders (not dark navy), and opt
-  // into safe-area insets so the sticky header/footer clear notches in the PWA.
-  themeColor: "#f8fafc",
+  // Ink chrome to match the Signal brand mark.
+  themeColor: "#17140D",
   colorScheme: "light",
   viewportFit: "cover",
 };
@@ -43,7 +49,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${lexend.variable} ${sourceSans.variable} h-full antialiased`}
+      className={`${grotesk.variable} ${hanken.variable} ${plex.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <a

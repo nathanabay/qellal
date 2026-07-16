@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
 import { NavLink } from "@/components/ui/NavLink";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 async function getHeaderUser(): Promise<{ email: string | null; isStaff: boolean }> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return { email: null, isStaff: false };
@@ -31,7 +32,7 @@ export async function SiteHeader() {
           href="/"
           className="flex min-h-11 items-center gap-2 font-heading text-lg font-bold tracking-tight text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-primary" />
+          <BrandMark className="h-5 w-5" />
           Qellal
         </Link>
 

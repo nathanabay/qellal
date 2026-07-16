@@ -1,58 +1,53 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Design tokens — "Trust & Authority" (enterprise/government procurement).
-   Professional navy + deep-blue CTA. Lexend headings / Source Sans 3 body.
+   Design tokens — "Signal". Ink is the interactive colour (never blue); red and
+   amber mean TIME ONLY (deadline countdowns). Space Grotesk headings / Hanken
+   Grotesk body / IBM Plex Mono for dates & countdowns.
 --------------------------------------------------------------------------- */
 
-/* Layer 1 — primitives */
+/* Layer 1 — primitives (Signal) */
 :root {
-  --blue-50: #e0f2fe; /* soft tint */
-  --blue-700: #0369a1; /* CTA / links */
-  --blue-800: #075985; /* CTA hover */
+  --ink-900:  #17140D;   /* ink + dark surfaces + interactive */
+  --ink-800:  #2A2519;   /* hover on ink */
+  --paper:    #F4F1EA;   /* canvas */
+  --sand-100: #ECE7DB;   /* hairline */
+  --sand-200: #D8D2C4;   /* border */
+  --sand-600: #6B6459;   /* muted text */
 
-  --navy-900: #0f172a; /* ink + dark surfaces */
-  --navy-800: #1e293b;
-
-  --amber-100: #fef3c7;
-  --amber-700: #b45309;
-  --red-100: #fee2e2;
-  --red-700: #b91c1c;
-
-  --slate-50: #f8fafc; /* canvas */
-  --slate-100: #eef2f7;
-  --slate-200: #e2e8f0; /* border */
-  --slate-300: #cbd5e1;
-  --slate-600: #475569; /* muted text */
+  --signal-500:  #E8462F; /* time ≤ 3 days — nothing else */
+  --signal-100:  #F7DDD6;
+  --caution-500: #C8801D; /* time ≤ 7 days */
+  --caution-100: #F0E3CB;
 }
 
 /* Layer 2 — semantic tokens → Tailwind utilities */
 @theme inline {
-  --font-sans: var(--font-source);
-  --font-heading: var(--font-lexend);
+  --font-sans:    var(--font-hanken);
+  --font-heading: var(--font-grotesk);
+  --font-mono:    var(--font-plex);
 
-  --color-primary: var(--blue-700);
-  --color-primary-hover: var(--blue-800);
-  --color-primary-soft: var(--blue-50);
+  --color-primary:       var(--ink-900);
+  --color-primary-hover: var(--ink-800);
+  --color-primary-soft:  var(--sand-100);
 
-  --color-urgent: var(--red-700); /* deadline ≤ 3 days */
-  --color-urgent-soft: var(--red-100);
-  --color-warn: var(--amber-700); /* deadline ≤ 7 days */
-  --color-warn-soft: var(--amber-100);
+  --color-urgent:      var(--signal-500);
+  --color-urgent-soft: var(--signal-100);
+  --color-warn:        var(--caution-500);
+  --color-warn-soft:   var(--caution-100);
 
-  --color-canvas: var(--slate-50);
-  --color-surface: #ffffff;
-  --color-border: var(--slate-200);
-  --color-ink: var(--navy-900);
-  --color-muted: var(--slate-600);
+  --color-canvas:  var(--paper);
+  --color-surface: #FFFFFF;
+  --color-border:  var(--sand-200);
+  --color-ink:     var(--ink-900);
+  --color-muted:   var(--sand-600);
 
-  --color-navy: var(--navy-900); /* dark bands / footer */
-  --color-navy-soft: var(--navy-800);
-  --color-hairline: var(--slate-100);
+  --color-navy:      var(--ink-900);
+  --color-navy-soft: var(--ink-800);
+  --color-hairline:  var(--sand-100);
 
-  /* Elevation scale (soft, cool-tinted) */
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
-  --shadow-lift: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.05);
+  --shadow-card: 0 1px 2px rgba(23,20,13,.05), 0 1px 3px rgba(23,20,13,.07);
+  --shadow-lift: 0 4px 12px rgba(23,20,13,.10), 0 2px 4px rgba(23,20,13,.06);
 }
 
 /* Light-only app: tell the UA so form controls/scrollbars match. */

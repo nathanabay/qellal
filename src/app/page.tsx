@@ -205,23 +205,23 @@ export default async function Home() {
       {/* CTA band */}
       <section className="bg-navy">
         <div className="mx-auto max-w-5xl px-4 py-16 text-center">
-          <h2 className="mx-auto max-w-2xl text-2xl font-bold text-white sm:text-3xl">
+          <h2 className="mx-auto max-w-2xl font-heading text-2xl font-bold text-canvas sm:text-3xl">
             Start tracking tenders in under a minute
           </h2>
-          <p className="mx-auto mt-3 max-w-lg text-slate-300">
+          <p className="mx-auto mt-3 max-w-lg text-canvas/70">
             Create a free account, save your first alert, and let Qellal watch
             the deadlines for you.
           </p>
           <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               href="/signup"
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-white px-6 font-semibold text-navy transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-canvas px-6 font-semibold text-ink transition-colors hover:bg-hairline focus:outline-none focus-visible:ring-2 focus-visible:ring-canvas"
             >
               Create free account
             </Link>
             <Link
               href="/tenders"
-              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/25 px-6 font-medium text-white transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-canvas/25 px-6 font-medium text-canvas transition-colors hover:bg-canvas/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-canvas"
             >
               Browse tenders
             </Link>

@@ -10,6 +10,7 @@ import {
   DocumentIcon,
   AlertIcon,
 } from "@/components/ui/icons";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 // Admin sidebar with exact-match active state.
 export function AdminNav({ role }: { role: string }) {
@@ -53,7 +54,8 @@ export function AdminNav({ role }: { role: string }) {
 
   return (
     <nav className="rounded-xl border border-border bg-surface p-2 text-sm lg:sticky lg:top-20">
-      <p className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">
+      <p className="flex items-center gap-2 px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">
+        <BrandMark className="h-4 w-4" />
         Admin · {role}
       </p>
       {items.map(({ href, label, Icon }) => {

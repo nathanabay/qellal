@@ -73,9 +73,9 @@ export default async function AccountPage({
     id != null ? (categories.find((c) => c.id === id)?.name ?? null) : null;
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8">
+    <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <h1 className="font-heading text-2xl font-bold tracking-tight text-ink sm:text-3xl">
           Your alerts
         </h1>
         <p className="mt-1 text-sm text-muted">
@@ -102,6 +102,9 @@ export default async function AccountPage({
         </div>
       )}
 
+      <div className="lg:grid lg:grid-cols-[320px_1fr] lg:gap-6 lg:items-start">
+      {/* Left rail — plan + invoices */}
+      <div>
       {/* Plan & subscription lifecycle (Slice 2 — test mode, no real charge) */}
       <section className="mb-6 rounded-xl border border-border bg-surface p-4">
         <div className="flex items-center justify-between gap-2">
@@ -141,23 +144,19 @@ export default async function AccountPage({
                 </SubmitButton>
               </form>
               <form action={cancelPlan}>
-                <SubmitButton variant="danger" className="px-3">
-                  Cancel
-                </SubmitButton>
+                <SubmitButton variant="ghost">Cancel</SubmitButton>
               </form>
             </>
           )}
           {status === "active" && (
             <>
               <form action={pausePlan}>
-                <SubmitButton variant="secondary" className="px-3">
+                <SubmitButton className="px-3" pendingText="Pausing…">
                   Pause
                 </SubmitButton>
               </form>
               <form action={cancelPlan}>
-                <SubmitButton variant="danger" className="px-3">
-                  Cancel Pro → Free
-                </SubmitButton>
+                <SubmitButton variant="ghost">Cancel Pro → Free</SubmitButton>
               </form>
             </>
           )}
@@ -169,9 +168,7 @@ export default async function AccountPage({
                 </SubmitButton>
               </form>
               <form action={cancelPlan}>
-                <SubmitButton variant="danger" className="px-3">
-                  Cancel
-                </SubmitButton>
+                <SubmitButton variant="ghost">Cancel</SubmitButton>
               </form>
             </>
           )}
@@ -219,7 +216,10 @@ export default async function AccountPage({
           </ul>
         </section>
       )}
+      </div>
 
+      {/* Right column — notification prefs + watched alerts */}
+      <div>
       {/* Notification channels */}
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
@@ -280,7 +280,8 @@ export default async function AccountPage({
               {isPaused ? (
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm text-warn">
-                    Alerts paused until {pausedUntil!.toLocaleDateString("en-GB")}.
+                    Alerts paused until{" "}
+                    {formatDate(profile!.notifications_paused_until!)}.
                   </p>
                   <form action={setNotificationPause}>
                     <input type="hidden" name="days" value="0" />
@@ -443,6 +444,8 @@ export default async function AccountPage({
           </ul>
         )}
       </section>
+      </div>
+      </div>
     </main>
   );
 }
