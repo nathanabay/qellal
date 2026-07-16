@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { getTopEntities } from "@/lib/insights";
 
-export const dynamic = "force-dynamic";
+// Public aggregate page; cache for an hour (data updates ~daily).
+export const revalidate = 3600;
 
 export const metadata = {
   title: "Most active procuring entities — Qellal",

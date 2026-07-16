@@ -5,7 +5,8 @@ import { getCategories } from "@/lib/tenders";
 import { TenderCard } from "@/components/TenderCard";
 import { daysLeft } from "@/lib/format";
 
-export const dynamic = "force-dynamic";
+// Public aggregate page; cache for an hour (data updates ~daily).
+export const revalidate = 3600;
 
 type Params = Promise<{ entity: string }>;
 
@@ -21,24 +22,31 @@ export async function generateMetadata({ params }: { params: Params }) {
 export default async function EntityPage({ params }: { params: Params }) {
   const { entity } = await params;
   const name = decodeURIComponent(entity);
-  const [{ stat, tenders }, categories] = await Promise.all([
+  const [profile, categories] = await Promise.all([
     getEntityProfile(name),
     getCategories(),
   ]);
+  const { stat, tenders, sectorCounts, regionCounts, sectorCount } = profile;
   if (!stat && tenders.length === 0) notFound();
 
   const openTenders = tenders.filter((t) => daysLeft(t.deadline) > 0);
 
-  // Top sectors + regions this entity tenders in (from their tenders).
-  const catName = (id: number | null) =>
-    id == null ? null : (categories.find((c) => c.id === id)?.name ?? null);
-  const tally = (values: (string | null)[]) => {
-    const m = new Map<string, number>();
-    for (const v of values) if (v) m.set(v, (m.get(v) ?? 0) + 1);
-    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  };
-  const topSectors = tally(tenders.map((t) => catName(t.category_id)));
-  const topRegions = tally(tenders.map((t) => t.region));
+  // Top sectors + regions across ALL the entity's tenders (via the join).
+  const catName = (id: number) =>
+    categories.find((c) => c.id === id)?.name ?? null;
+  const top = (
+    m: Record<string, number>,
+    name: (k: string) => string | null,
+  ): [string, number][] =>
+    Object.entries(m)
+      .map(([k, c]) => [name(k), c] as [string | null, number])
+      .filter((e): e is [string, number] => e[0] != null)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  const topSectors = top(sectorCounts as Record<string, number>, (k) =>
+    catName(Number(k)),
+  );
+  const topRegions = top(regionCounts, (k) => k);
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-8">
@@ -56,7 +64,7 @@ export default async function EntityPage({ params }: { params: Params }) {
         {[
           { label: "Total tenders", value: stat?.tender_count ?? tenders.length },
           { label: "Open now", value: stat?.open_count ?? openTenders.length },
-          { label: "Sectors", value: topSectors.length },
+          { label: "Sectors", value: sectorCount },
         ].map((s) => (
           <div
             key={s.label}

@@ -48,10 +48,13 @@ export default async function TenderDetailPage({
     saved = Boolean(data);
   }
 
-  const [tenderCats, similar] = await Promise.all([
-    getTenderCategories(tender.id),
-    getSimilarTenders(tender.category_id, tender.id, 4),
-  ]);
+  const tenderCats = await getTenderCategories(tender.id);
+  const catIds = tenderCats.length
+    ? tenderCats.map((c) => c.id)
+    : tender.category_id != null
+      ? [tender.category_id]
+      : [];
+  const similar = await getSimilarTenders(catIds, tender.id, 4);
 
   const d = daysLeft(tender.deadline);
   const urgency =

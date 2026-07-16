@@ -2,7 +2,8 @@ import Link from "next/link";
 import { getMonthlyActivity, getTopEntities } from "@/lib/insights";
 import { getCategories, getOpenTenderFacetCounts } from "@/lib/tenders";
 
-export const dynamic = "force-dynamic";
+// Insights data changes ~daily (scrape cadence); cache for an hour.
+export const revalidate = 3600;
 
 export const metadata = {
   title: "Tender market insights — Qellal",
@@ -27,6 +28,7 @@ export default async function InsightsPage() {
   const monthMax = Math.max(1, ...months.map((m) => m.tender_count));
   const sectors = categories
     .map((c) => ({ name: c.name, slug: c.slug, open: counts.categories[c.id] ?? 0 }))
+    .filter((s) => s.open > 0) // hide the ~160 empty sectors
     .sort((a, b) => b.open - a.open);
   const sectorMax = Math.max(1, ...sectors.map((s) => s.open));
 
@@ -71,9 +73,19 @@ export default async function InsightsPage() {
 
       {/* Sector activity */}
       <section className="mt-4 rounded-xl border border-border bg-surface p-4">
-        <h2 className="text-sm font-semibold text-ink">Open tenders by sector</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ink">
+            Busiest sectors (open)
+          </h2>
+          <Link
+            href="/categories"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            All sectors →
+          </Link>
+        </div>
         <ul className="mt-3 space-y-2">
-          {sectors.map((s) => (
+          {sectors.slice(0, 15).map((s) => (
             <li key={s.slug}>
               <Link
                 href={`/tenders?category=${s.slug}`}

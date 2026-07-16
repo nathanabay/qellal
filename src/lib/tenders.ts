@@ -1,4 +1,6 @@
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAnonClient } from "@/lib/supabase/anon";
 import type { TenderCardData } from "@/components/TenderCard";
 
 // Business logic lives here, not in page components (project rule).
@@ -158,19 +160,23 @@ export async function getTenderCategories(
 
 export async function getCategories(): Promise<Category[]> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("categories")
-    .select("id,name,slug")
-    .order("position", { nullsFirst: false })
-    .order("name");
-
-  if (error) {
-    console.error("categories fetch failed:", error.message);
-    return [];
-  }
-  return data ?? [];
+  return unstable_cache(
+    async () => {
+      const supabase = createAnonClient();
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id,name,slug")
+        .order("position", { nullsFirst: false })
+        .order("name");
+      if (error) {
+        console.error("categories fetch failed:", error.message);
+        return [];
+      }
+      return data ?? [];
+    },
+    ["categories-all"],
+    { revalidate: 3600 },
+  )();
 }
 
 // Open-tender counts per category id and per region — powers the "Browse by
@@ -184,8 +190,14 @@ export type FacetCounts = {
 export async function getOpenTenderFacetCounts(): Promise<FacetCounts> {
   const empty: FacetCounts = { categories: {}, regions: {} };
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return empty;
+  return unstable_cache(facetCountsUncached, ["open-facet-counts"], {
+    revalidate: 3600,
+  })();
+}
 
-  const supabase = await createClient();
+async function facetCountsUncached(): Promise<FacetCounts> {
+  const empty: FacetCounts = { categories: {}, regions: {} };
+  const supabase = createAnonClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("tenders")
@@ -220,7 +232,7 @@ export async function getOpenTenderFacetCounts(): Promise<FacetCounts> {
 export async function getDistinctRegions(): Promise<string[]> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
 
-  const supabase = await createClient();
+  const supabase = createAnonClient();
   const { data, error } = await supabase
     .from("tenders")
     .select("region")
