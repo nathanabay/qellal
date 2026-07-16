@@ -76,9 +76,15 @@ export default async function TenderDetailPage({
         ? "text-warn"
         : "text-canvas";
 
-  // Facts shown in the ink hero (mono). Region/entity/category live in the left
-  // column, so the deadline is stated exactly once — in the hero.
+  // Facts shown in the ink hero (mono). Categories lead — they're also clickable
+  // chips at the top of the column, but the card is the at-a-glance data summary.
   const facts: Array<{ label: string; value: string }> = [];
+  if (tenderCats.length > 0)
+    facts.push({
+      label: tenderCats.length > 1 ? "Categories" : "Category",
+      value: tenderCats.map((c) => c.name).join(", "),
+    });
+  if (tender.region) facts.push({ label: "Region", value: tender.region });
   if (tender.published_date)
     facts.push({ label: "Published", value: formatDate(tender.published_date) });
   if (tender.published_on)
