@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { getPublishedTenders, getPublishedTenderCount } from "@/lib/tenders";
+import {
+  getPublishedTenders,
+  getPublishedTenderCount,
+  getCategories,
+} from "@/lib/tenders";
 import { TenderCard } from "@/components/TenderCard";
 import {
   DocumentIcon,
@@ -43,8 +47,8 @@ const features = [
     body: "Each listing links to its official original notice, so you can always verify before you bid.",
   },
   {
-    title: "Free to use",
-    body: "Browse without an account and get alerts at no cost. Upgrade only if you want more.",
+    title: "Market intelligence",
+    body: "See who tenders most, activity by sector and month, and similar past tenders — insight 2merkato doesn't give you.",
   },
 ];
 
@@ -62,11 +66,13 @@ function Stat({ value, label }: { value: React.ReactNode; label: string }) {
 }
 
 export default async function Home() {
-  const [soon, count] = await Promise.all([
+  const [soon, count, categories] = await Promise.all([
     getPublishedTenders({ limit: 3, sort: "deadline" }),
     getPublishedTenderCount(),
+    getCategories(),
   ]);
   const openCount = count ?? 0;
+  const categoryCount = categories.length || 17;
 
   return (
     <main>
@@ -101,7 +107,7 @@ export default async function Home() {
       <section className="border-y border-border">
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-px bg-border sm:grid-cols-4">
           <Stat value={openCount} label="Live tenders" />
-          <Stat value="10" label="Categories" />
+          <Stat value={categoryCount} label="Sectors" />
           <Stat value="2" label="Alert channels" />
           <Stat value="ETB 0" label="To get started" />
         </div>
@@ -133,6 +139,27 @@ export default async function Home() {
               <h3 className="mt-4 font-semibold text-ink">{s.title}</h3>
               <p className="mt-1.5 text-sm text-muted">{s.body}</p>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Explore */}
+      <section className="mx-auto w-full max-w-5xl px-4 pb-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { href: "/categories", label: "Browse by sector", sub: `${categoryCount} sectors` },
+            { href: "/regions", label: "Browse by region", sub: "Across Ethiopia" },
+            { href: "/insights", label: "Market insights", sub: "Trends & activity" },
+            { href: "/entities", label: "Top buyers", sub: "Who tenders most" },
+          ].map((c) => (
+            <Link
+              key={c.href}
+              href={c.href}
+              className="rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span className="block font-semibold text-ink">{c.label}</span>
+              <span className="mt-0.5 block text-xs text-muted">{c.sub}</span>
+            </Link>
           ))}
         </div>
       </section>

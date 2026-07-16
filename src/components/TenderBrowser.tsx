@@ -226,7 +226,7 @@ export function TenderBrowser({
               key={c.label}
               type="button"
               onClick={c.clear}
-              className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="inline-flex min-h-[28px] items-center gap-1 rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               aria-label={`Remove filter ${c.label}`}
             >
               {c.label}

@@ -71,6 +71,9 @@ export default function SignupPage() {
           <SubmitButton pendingText="Creating account…" className="w-full">
             Create account
           </SubmitButton>
+          <p className="text-center text-xs text-muted">
+            Free · No credit card · Cancel anytime
+          </p>
         </form>
       )}
 

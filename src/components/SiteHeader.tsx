@@ -36,7 +36,8 @@ export async function SiteHeader() {
         </Link>
 
         <nav className="flex items-center gap-1 text-sm">
-          <NavLink href="/tenders">Browse tenders</NavLink>
+          <NavLink href="/tenders">Browse</NavLink>
+          <NavLink href="/insights">Insights</NavLink>
 
           {email ? (
             <>
