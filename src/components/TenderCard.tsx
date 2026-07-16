@@ -12,6 +12,7 @@ export type TenderCardData = {
   source_name: string;
   publishing_entity: string | null;
   category_id: number | null;
+  category_ids?: number[];
   bid_bond?: string | null;
   published_date?: string | null;
 };

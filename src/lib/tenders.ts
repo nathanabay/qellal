@@ -25,7 +25,7 @@ type GetOptions = {
 };
 
 const COLUMNS =
-  "id,title,region,deadline,published_date,source_name,publishing_entity,category_id,bid_bond";
+  "id,title,region,deadline,published_date,source_name,publishing_entity,category_id,bid_bond,tender_categories(category_id)";
 
 export async function getPublishedTenders(
   opts: GetOptions = {},
@@ -63,7 +63,21 @@ export async function getPublishedTenders(
     console.error("tenders fetch failed:", error.message);
     return { state: "error", message: error.message };
   }
-  return { state: "ok", tenders: data ?? [] };
+  // Flatten the nested join into a category_ids array so the client can filter
+  // by ANY of a tender's categories, not just its primary one.
+  const rows = (data ?? []) as unknown as Array<
+    Record<string, unknown> & {
+      category_id: number | null;
+      tender_categories?: { category_id: number }[] | null;
+    }
+  >;
+  const tenders = rows.map((r) => {
+    const { tender_categories, ...rest } = r;
+    const ids = (tender_categories ?? []).map((tc) => tc.category_id);
+    if (ids.length === 0 && r.category_id != null) ids.push(r.category_id);
+    return { ...rest, category_ids: ids } as unknown as TenderCardData;
+  });
+  return { state: "ok", tenders };
 }
 
 // Lightweight count for the landing hero (head request, no rows transferred).
@@ -175,7 +189,7 @@ export async function getOpenTenderFacetCounts(): Promise<FacetCounts> {
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("tenders")
-    .select("category_id,region,deadline")
+    .select("category_id,region,deadline,tender_categories(category_id)")
     .eq("status", "published")
     .gte("deadline", today); // open only
 
@@ -183,15 +197,19 @@ export async function getOpenTenderFacetCounts(): Promise<FacetCounts> {
     console.error("facet counts failed:", error.message);
     return empty;
   }
-  const rows = (data ?? []) as {
+  const rows = (data ?? []) as unknown as {
     category_id: number | null;
     region: string | null;
+    tender_categories?: { category_id: number }[] | null;
   }[];
   const categories: Record<number, number> = {};
   const regions: Record<string, number> = {};
   for (const r of rows) {
-    if (r.category_id != null)
-      categories[r.category_id] = (categories[r.category_id] ?? 0) + 1;
+    // Count each open tender toward every category it belongs to (the join),
+    // falling back to its primary category if there are no join rows yet.
+    const ids = (r.tender_categories ?? []).map((tc) => tc.category_id);
+    if (ids.length === 0 && r.category_id != null) ids.push(r.category_id);
+    for (const id of ids) categories[id] = (categories[id] ?? 0) + 1;
     if (r.region) regions[r.region] = (regions[r.region] ?? 0) + 1;
   }
   return { categories, regions };

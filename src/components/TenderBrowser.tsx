@@ -83,17 +83,27 @@ export function TenderBrowser({
   const passesDeadline = (t: TenderCardData) =>
     maxDays === null || daysLeft(t.deadline) <= maxDays;
   const passesBidBond = (t: TenderCardData) => !f.bidBond || Boolean(t.bid_bond);
+  // A tender matches a category if ANY of its categories match (the many-to-many
+  // join), falling back to the primary category_id.
+  const tenderCatIds = (t: TenderCardData) =>
+    t.category_ids?.length
+      ? t.category_ids
+      : t.category_id != null
+        ? [t.category_id]
+        : [];
   const passesCategory = (t: TenderCardData) =>
-    !f.category || t.category_id === catId;
+    !f.category || (catId != null && tenderCatIds(t).includes(catId));
 
   // Counts reflect all OTHER active facets (so each is "what you'd get").
   const categoryCounts = useMemo(() => {
     const m: Record<string, number> = {};
     for (const t of scoped) {
       if (!passesRegion(t) || !passesDeadline(t) || !passesBidBond(t)) continue;
-      if (t.category_id == null) continue;
-      const slug = idToSlug.get(t.category_id);
-      if (slug) m[slug] = (m[slug] ?? 0) + 1;
+      // Count a tender toward every category it belongs to.
+      for (const id of tenderCatIds(t)) {
+        const slug = idToSlug.get(id);
+        if (slug) m[slug] = (m[slug] ?? 0) + 1;
+      }
     }
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
