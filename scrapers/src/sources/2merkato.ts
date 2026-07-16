@@ -36,7 +36,7 @@ type RawTender = {
   sources: RawSource[] | null;
   company: NamePair | null;
   region: NamePair | string | null;
-  categories: NamePair[] | NamePair | string | null;
+  categories: RawCategory[] | RawCategory | string | null;
   is_open: boolean;
 };
 
@@ -61,20 +61,74 @@ function slugify(s: string): string {
     .slice(0, 80);
 }
 
-// All of a tender's 2merkato categories (deduped, English names). First = primary.
-function allCategories(
-  cats: NamePair[] | NamePair | string | null,
-): { slug: string; name: string }[] {
+type Cat = { slug: string; name: string };
+type RawCategory = {
+  id?: string | null;
+  name_en?: string | null;
+  name?: string | null;
+};
+
+const catName = (n: unknown): string => {
+  if (typeof n === "string") return n.trim();
+  const o = n as { en?: string; name_en?: string; am?: string } | null;
+  return (o?.en ?? o?.name_en ?? o?.am ?? "").trim();
+};
+
+// Map each child category's 2merkato id → its parent category. 2merkato reuses
+// child NAMES across parents, so we key on the stable id to pick the right
+// parent and reproduce the "Filed Under" tree exactly.
+async function fetchCategoryParents(
+  session: MerkatoSession,
+): Promise<Map<string, Cat>> {
+  const map = new Map<string, Cat>();
+  try {
+    const r = await fetch(`${BASE}/api/v1/categories`, {
+      headers: { "User-Agent": UA, Cookie: cookieHeaderFor(session), Accept: "application/json" },
+    });
+    const arr = (await r.json()) as {
+      name: unknown;
+      children?: { id?: string }[];
+    }[];
+    for (const parent of arr) {
+      const pname = catName(parent.name);
+      const pslug = slugify(pname);
+      if (!pslug) continue;
+      for (const child of parent.children ?? []) {
+        if (child.id) map.set(String(child.id), { slug: pslug, name: pname });
+      }
+    }
+  } catch {
+    /* taxonomy unavailable — fall back to leaf categories only */
+  }
+  return map;
+}
+
+// A tender's full "Filed Under" set: every tagged (leaf) category plus its
+// parent (looked up by the leaf's 2merkato id). First entry = primary.
+function expandCategories(
+  cats: RawCategory[] | RawCategory | string | null,
+  parentById: Map<string, Cat>,
+): Cat[] {
   const arr = Array.isArray(cats) ? cats : cats ? [cats] : [];
   const seen = new Set<string>();
-  const out: { slug: string; name: string }[] = [];
+  const out: Cat[] = [];
+  const add = (c: Cat) => {
+    if (c.slug && !seen.has(c.slug)) {
+      seen.add(c.slug);
+      out.push(c);
+    }
+  };
   for (const c of arr) {
-    const name = nameOf(c);
+    if (typeof c === "string") {
+      const n = c.trim();
+      if (n) add({ slug: slugify(n), name: n });
+      continue;
+    }
+    const name = catName(c.name_en) || catName(c.name);
     if (!name) continue;
-    const slug = slugify(name);
-    if (!slug || seen.has(slug)) continue;
-    seen.add(slug);
-    out.push({ slug, name });
+    add({ slug: slugify(name), name });
+    const parent = c.id ? parentById.get(String(c.id)) : undefined;
+    if (parent) add(parent);
   }
   return out;
 }
@@ -159,6 +213,13 @@ export async function scrape2merkato(
     );
   }
 
+  // Parent-category map so each tender gets its full "Filed Under" tree.
+  const categoryParents = session
+    ? await fetchCategoryParents(session)
+    : new Map<string, Cat>();
+  if (categoryParents.size)
+    console.log(`2merkato: loaded ${categoryParents.size} child→parent mappings.`);
+
   // Flush scraped rows in batches so progress survives a timeout/cancel.
   const BATCH_SIZE = 50;
   let buffer: TenderInput[] = [];
@@ -208,7 +269,7 @@ export async function scrape2merkato(
         const t = page.props?.tender;
         const base = request.userData.partial as TenderInput;
         if (t) {
-          const cats = allCategories(t.categories);
+          const cats = expandCategories(t.categories, categoryParents);
           if (cats.length) base.categories = cats;
           base.description =
             formatDescription(t.description) ??
@@ -253,7 +314,7 @@ export async function scrape2merkato(
           deadline,
           source_name: SOURCE_NAME,
           source_url: sourceUrl,
-          categories: allCategories(t.categories),
+          categories: expandCategories(t.categories, categoryParents),
           bid_bond: toStr(t.bid_bond),
           bid_document_price: toStr(t.bid_document_price),
           published_on: publishedOn(t.sources),
