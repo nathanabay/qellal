@@ -137,6 +137,7 @@ export async function getTenderCategories(
     .from("categories")
     .select("id,name,slug")
     .in("id", ids)
+    .order("position", { nullsFirst: false })
     .order("name");
   return (cats ?? []) as Category[];
 }
@@ -148,6 +149,7 @@ export async function getCategories(): Promise<Category[]> {
   const { data, error } = await supabase
     .from("categories")
     .select("id,name,slug")
+    .order("position", { nullsFirst: false })
     .order("name");
 
   if (error) {
