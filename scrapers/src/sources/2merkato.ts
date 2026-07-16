@@ -155,7 +155,7 @@ function safeSpans(attrs: string): string {
 
 function formatDescription(html: string | null | undefined): string | null {
   if (!html) return null;
-  let s = html
+  const s = html
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(script|style|iframe|object|embed|link|meta)\b[\s\S]*?<\/\1>/gi, "")
     .replace(/<(script|style|iframe|object|embed|link|meta)\b[^>]*\/?>/gi, "")
