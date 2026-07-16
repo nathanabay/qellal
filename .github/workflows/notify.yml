@@ -14,6 +14,8 @@ on:
 jobs:
   notify:
     runs-on: ubuntu-latest
+    # Secrets live in the "Production" environment, so the job must declare it.
+    environment: Production
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -21,9 +23,10 @@ jobs:
           python-version: "3.11"
       - name: Run notification matcher
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          # Reuse the existing NEXT_PUBLIC_SUPABASE_URL secret.
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          APP_URL: ${{ secrets.APP_URL }}
+          APP_URL: ${{ secrets.APP_URL || 'https://qellal.vercel.app' }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
