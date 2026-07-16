@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   getPublishedTenders,
-  getPublishedTenderCount,
+  getOpenTenderCount,
   getCategories,
 } from "@/lib/tenders";
 import { TenderCard } from "@/components/TenderCard";
@@ -68,7 +68,7 @@ function Stat({ value, label }: { value: React.ReactNode; label: string }) {
 export default async function Home() {
   const [soon, count, categories] = await Promise.all([
     getPublishedTenders({ limit: 3, sort: "deadline" }),
-    getPublishedTenderCount(),
+    getOpenTenderCount(),
     getCategories(),
   ]);
   const openCount = count ?? 0;

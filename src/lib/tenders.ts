@@ -82,7 +82,31 @@ export async function getPublishedTenders(
   return { state: "ok", tenders };
 }
 
-// Lightweight count for the landing hero (head request, no rows transferred).
+// Count of OPEN tenders (deadline not passed) — this is the "live" number the
+// hero and CTA show, matching what /tenders defaults to. Head request only.
+export async function getOpenTenderCount(): Promise<number | null> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
+  return unstable_cache(
+    async () => {
+      const supabase = createAnonClient();
+      const today = new Date().toISOString().slice(0, 10);
+      const { count, error } = await supabase
+        .from("tenders")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "published")
+        .gte("deadline", today);
+      if (error) {
+        console.error("open tender count failed:", error.message);
+        return null;
+      }
+      return count ?? 0;
+    },
+    ["open-tender-count"],
+    { revalidate: 3600 },
+  )();
+}
+
+// Total published (open + closed) — used where the whole archive size matters.
 export async function getPublishedTenderCount(): Promise<number | null> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
 
