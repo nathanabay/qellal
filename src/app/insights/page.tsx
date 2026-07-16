@@ -55,13 +55,22 @@ export default async function InsightsPage() {
         {months.length === 0 ? (
           <p className="mt-2 text-sm text-muted">Not enough history yet.</p>
         ) : (
-          <div className="mt-3 flex items-end gap-1.5" style={{ height: "120px" }}>
+          <div
+            className="mt-3 flex items-stretch gap-1.5"
+            style={{ height: "120px" }}
+          >
             {months.map((m) => (
-              <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
+              <div
+                key={m.month}
+                className="flex h-full flex-1 flex-col items-center gap-1"
+              >
                 <div className="flex w-full flex-1 items-end">
                   <div
                     className="w-full rounded-t bg-primary"
-                    style={{ height: `${(m.tender_count / monthMax) * 100}%` }}
+                    style={{
+                      height: `${(m.tender_count / monthMax) * 100}%`,
+                      minHeight: m.tender_count > 0 ? "2px" : "0",
+                    }}
                     title={`${m.tender_count} tenders`}
                   />
                 </div>
