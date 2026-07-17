@@ -1,0 +1,9 @@
+# Interim: self-signed TLS for the bare static IP (no domain yet).
+# Traffic — including the API key header — is encrypted; the cert has no public
+# chain, so the app/scraper Meili clients run with MEILI_INSECURE_TLS=1.
+# When a domain is added: replace the IP with `search.<domain>`, remove
+# `tls internal`, and drop MEILI_INSECURE_TLS so Caddy issues a Let's Encrypt cert.
+159.69.240.169 {
+    tls internal
+    reverse_proxy meilisearch:7700
+}
