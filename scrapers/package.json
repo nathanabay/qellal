@@ -6,7 +6,8 @@
   "description": "Qellal tender scrapers (Crawlee). Writes pending_review rows only.",
   "scripts": {
     "scrape": "tsx src/main.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "reindex": "tsx src/reindex.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
