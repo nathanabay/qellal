@@ -1,4 +1,6 @@
 import { getSupabase } from "./supabase";
+import { toSearchDoc } from "./search-doc";
+import { pushTenders } from "./meili";
 import type { TenderInput, TaxonomyRow } from "./types";
 
 export type SaveResult = { inserted: number; skipped: number };
@@ -171,6 +173,27 @@ export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
       .from("tender_categories")
       .upsert(joins, { onConflict: "tender_id,category_id", ignoreDuplicates: true });
     if (jErr) console.error("tender_categories insert failed:", jErr.message);
+  }
+
+  // Mirror the new tenders into Meilisearch as they land (non-fatal; the daily
+  // reindex reconciles). Skipped when Meili isn't configured (dry runs / no env).
+  if (process.env.MEILI_HOST) {
+    try {
+      const now = new Date();
+      const docs = fresh
+        .map((t) => {
+          const tid = urlToId.get(t.source_url);
+          if (!tid) return null;
+          const ids = t.categories
+            .map((c) => slugToId.get(c.slug))
+            .filter((x): x is number => x != null);
+          return toSearchDoc({ ...t, id: tid, category_ids: ids }, now);
+        })
+        .filter((d): d is NonNullable<typeof d> => d !== null);
+      await pushTenders(docs);
+    } catch (e) {
+      console.error("meili push failed (non-fatal):", (e as Error).message);
+    }
   }
 
   return {

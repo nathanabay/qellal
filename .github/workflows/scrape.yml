@@ -50,4 +50,16 @@ jobs:
           START_PAGE: ${{ github.event.inputs.start_page || '1' }}
           # Scheduled runs write for real; manual runs honor the dry_run input.
           DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
+          # Meilisearch — the scraper pushes new tenders to the index as it writes.
+          MEILI_HOST: ${{ secrets.MEILI_HOST }}
+          MEILI_ADMIN_KEY: ${{ secrets.MEILI_ADMIN_KEY }}
         run: npm run scrape -- ${{ github.event.inputs.source || '2merkato' }} ${{ github.event.inputs.pages || '500' }}
+      - name: Reindex search (reconcile after scrape)
+        if: ${{ github.event.inputs.dry_run != '1' }}
+        working-directory: scrapers
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MEILI_HOST: ${{ secrets.MEILI_HOST }}
+          MEILI_ADMIN_KEY: ${{ secrets.MEILI_ADMIN_KEY }}
+        run: npm run reindex

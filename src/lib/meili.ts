@@ -47,6 +47,10 @@ function getClient(): Meilisearch {
     client = new Meilisearch({
       host: process.env.MEILI_HOST!,
       apiKey: process.env.MEILI_SEARCH_KEY!,
+      // Fail fast if Meili is unreachable (e.g. DNS not yet propagated) so the
+      // page falls back to Postgres in ~2.5s instead of hanging on a long
+      // connect timeout.
+      timeout: 2500,
     });
   }
   return client;

@@ -1,0 +1,31 @@
+name: Reindex search
+
+# Daily full reindex of Meilisearch from Supabase (the source of truth). Catches
+# status changes / deletes and refreshes the date-relative fields (deadline_ts,
+# open_rank). The scraper and admin actions keep the index live between runs;
+# this is the reconciler of record.
+on:
+  schedule:
+    - cron: "0 5 * * *" # 05:00 UTC, after the 04:00 scrape
+  workflow_dispatch: {}
+
+jobs:
+  reindex:
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install scraper deps
+        working-directory: scrapers
+        run: npm install --no-audit --no-fund
+      - name: Reindex
+        working-directory: scrapers
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MEILI_HOST: ${{ secrets.MEILI_HOST }}
+          MEILI_ADMIN_KEY: ${{ secrets.MEILI_ADMIN_KEY }}
+        run: npm run reindex

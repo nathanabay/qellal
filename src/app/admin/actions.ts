@@ -2,10 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth-guard";
+import { indexTender, removeTender } from "@/lib/meili-admin";
+import { toSearchDoc } from "@/lib/search-doc";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+const DOC_COLS =
+  "id,title,publishing_entity,description,region,bid_bond,deadline," +
+  "published_on,published_date,source_name,category_id," +
+  "tender_categories(category_id)";
 
 export async function publishTender(formData: FormData) {
   const { supabase } = await requireStaff();
@@ -16,6 +23,21 @@ export async function publishTender(formData: FormData) {
     .update({ status: "published", published_date: today() })
     .eq("id", id);
   if (error) console.error("publish failed:", error.message);
+
+  // Add the freshly-published tender to the search index (non-fatal).
+  const { data: row } = await supabase
+    .from("tenders")
+    .select(DOC_COLS)
+    .eq("id", id)
+    .maybeSingle();
+  if (row) {
+    const r = row as unknown as Record<string, unknown>;
+    const joins = (r.tender_categories as { category_id: number }[] | null) ?? [];
+    const ids = joins.map((tc) => tc.category_id);
+    if (ids.length === 0 && r.category_id != null) ids.push(r.category_id as number);
+    await indexTender(toSearchDoc({ ...r, category_ids: ids } as never, new Date()));
+  }
+
   revalidatePath("/admin");
   revalidatePath("/tenders");
 }
@@ -29,6 +51,8 @@ export async function rejectTender(formData: FormData) {
     .update({ status: "rejected" })
     .eq("id", id);
   if (error) console.error("reject failed:", error.message);
+  // Drop it from the search index (non-fatal).
+  await removeTender(id);
   revalidatePath("/admin");
 }
 
