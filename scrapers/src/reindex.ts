@@ -7,9 +7,13 @@ import { meiliSynonyms } from "./lib/synonyms";
 // (re)apply index settings + synonyms, and replace the Meilisearch documents.
 // Runs at the end of each scrape and on a daily cron so status changes / deletes
 // and the date-relative fields (deadline_ts, open_rank) stay fresh.
+// NOTE: `posted_at` is intentionally NOT selected — migration 0023 (which adds
+// it) may not be applied yet, and selecting a missing column errors the whole
+// query. The publish timestamp derives from `published_on` → `published_date`
+// anyway, so dropping it is harmless. Re-add once 0023 is live if desired.
 const COLS =
   "id,title,publishing_entity,description,region,bid_bond,deadline," +
-  "published_on,published_date,posted_at,source_name,category_id," +
+  "published_on,published_date,source_name,category_id," +
   "tender_categories(category_id)";
 
 async function main() {

@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAnonClient } from "@/lib/supabase/anon";
+import { normalizeSearch, searchOrClause } from "@/lib/search";
 import type { TenderCardData } from "@/components/TenderCard";
 
 // Business logic lives here, not in page components (project rule).
@@ -10,7 +11,12 @@ export type TendersResult =
   | { state: "error"; message: string }
   | { state: "ok"; tenders: TenderCardData[] };
 
-export type Category = { id: number; name: string; slug: string };
+export type Category = {
+  id: number;
+  name: string;
+  slug: string;
+  parent_id: number | null; // null = top-level (matches 2merkato's tree)
+};
 
 export type TenderFilters = {
   q?: string; // keyword in title
@@ -19,6 +25,7 @@ export type TenderFilters = {
   deadlineInDays?: number; // deadline within N days from today
   openOnly?: boolean; // deadline not yet passed
   closedOnly?: boolean; // deadline passed
+  bidBond?: boolean; // only tenders that state a bid bond
 };
 
 type GetOptions = {
@@ -29,7 +36,7 @@ type GetOptions = {
 };
 
 const COLUMNS =
-  "id,title,region,deadline,published_date,source_name,publishing_entity,category_id,bid_bond,tender_categories(category_id)";
+  "id,title,region,deadline,published_date,published_on,source_name,publishing_entity,category_id,bid_bond,tender_categories(category_id)";
 
 export async function getPublishedTenders(
   opts: GetOptions = {},
@@ -51,9 +58,11 @@ export async function getPublishedTenders(
       .eq("status", "published");
     if (f.openOnly) query = query.gte("deadline", today);
     if (f.closedOnly) query = query.lt("deadline", today);
-    if (f.q) query = query.ilike("title", `%${f.q}%`);
+    const searchOr = f.q ? searchOrClause(normalizeSearch(f.q)) : null;
+    if (searchOr) query = query.or(searchOr);
     if (f.categoryId) query = query.eq("category_id", f.categoryId);
     if (f.region) query = query.eq("region", f.region);
+    if (f.bidBond) query = query.not("bid_bond", "is", null);
     if (f.deadlineInDays) {
       const cutoff = new Date(Date.now() + f.deadlineInDays * 86_400_000)
         .toISOString()
@@ -92,13 +101,91 @@ export async function getPublishedTenders(
       tender_categories?: { category_id: number }[] | null;
     }
   >;
-  const tenders = rows.map((r) => {
+  return { state: "ok", tenders: flattenRows(rawAll) };
+}
+
+// Flatten the nested category join into a category_ids array so the client can
+// filter by ANY of a tender's categories, not just its primary one.
+function flattenRows(rawAll: unknown[]): TenderCardData[] {
+  const rows = rawAll as Array<
+    Record<string, unknown> & {
+      category_id: number | null;
+      tender_categories?: { category_id: number }[] | null;
+    }
+  >;
+  return rows.map((r) => {
     const { tender_categories, ...rest } = r;
     const ids = (tender_categories ?? []).map((tc) => tc.category_id);
     if (ids.length === 0 && r.category_id != null) ids.push(r.category_id);
     return { ...rest, category_ids: ids } as unknown as TenderCardData;
   });
-  return { state: "ok", tenders };
+}
+
+export type TendersPageResult =
+  | { state: "not-configured" }
+  | { state: "error"; message: string }
+  | { state: "ok"; tenders: TenderCardData[]; total: number };
+
+// Server-side single page of results with a total count — used for the
+// Closed/All archive, which is far too large (thousands of rows) to preload and
+// filter in the browser. Filters and sort run in Postgres; only `pageSize` rows
+// come back per request.
+export async function getPublishedTendersPage(opts: {
+  filters?: TenderFilters;
+  sort?: "recent" | "deadline";
+  page?: number;
+  pageSize?: number;
+}): Promise<TendersPageResult> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return { state: "not-configured" };
+
+  const supabase = await createClient();
+  const f = opts.filters ?? {};
+  const today = new Date().toISOString().slice(0, 10);
+  const pageSize = opts.pageSize ?? 24;
+  const page = Math.max(1, opts.page ?? 1);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  // Match ANY of a tender's categories (the many-to-many join), not just its
+  // primary — parity with the open browser's client-side filtering. An inner
+  // join on the filtered category makes the count reflect distinct tenders.
+  const selectCols = f.categoryId
+    ? COLUMNS.replace(
+        "tender_categories(category_id)",
+        "tender_categories!inner(category_id)",
+      )
+    : COLUMNS;
+
+  let query = supabase
+    .from("tenders")
+    .select(selectCols, { count: "exact" })
+    .eq("status", "published");
+  if (f.openOnly) query = query.gte("deadline", today);
+  if (f.closedOnly) query = query.lt("deadline", today);
+  const searchOr = f.q ? searchOrClause(normalizeSearch(f.q)) : null;
+  if (searchOr) query = query.or(searchOr);
+  if (f.categoryId)
+    query = query.eq("tender_categories.category_id", f.categoryId);
+  if (f.region) query = query.eq("region", f.region);
+  if (f.bidBond) query = query.not("bid_bond", "is", null);
+  if (f.deadlineInDays) {
+    const cutoff = new Date(Date.now() + f.deadlineInDays * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    query = query.lte("deadline", cutoff);
+  }
+  query =
+    opts.sort === "deadline"
+      ? query.order("deadline", { ascending: true })
+      : query.order("published_date", { ascending: false });
+  query = query.order("id", { ascending: true }).range(from, to);
+
+  const { data, error, count } = await query;
+  if (error) {
+    console.error("tenders page fetch failed:", error.message);
+    return { state: "error", message: error.message };
+  }
+  return { state: "ok", tenders: flattenRows(data ?? []), total: count ?? 0 };
 }
 
 // Count of OPEN tenders (deadline not passed) — this is the "live" number the
@@ -192,12 +279,22 @@ export async function getTenderCategories(
     .eq("tender_id", tenderId);
   if (error || !links || links.length === 0) return [];
   const ids = links.map((l) => l.category_id);
-  const { data: cats } = await supabase
+  const { data: cats, error: cErr } = await supabase
     .from("categories")
-    .select("id,name,slug")
+    .select("id,name,slug,parent_id")
     .in("id", ids)
     .order("position", { nullsFirst: false })
     .order("name");
+  if (cErr) {
+    // parent_id may not be migrated yet (0022) — fall back so categories load.
+    const { data: legacy } = await supabase
+      .from("categories")
+      .select("id,name,slug")
+      .in("id", ids)
+      .order("position", { nullsFirst: false })
+      .order("name");
+    return (legacy ?? []).map((c) => ({ ...c, parent_id: null }));
+  }
   return (cats ?? []) as Category[];
 }
 
@@ -208,12 +305,22 @@ export async function getCategories(): Promise<Category[]> {
       const supabase = createAnonClient();
       const { data, error } = await supabase
         .from("categories")
-        .select("id,name,slug")
+        .select("id,name,slug,parent_id")
         .order("position", { nullsFirst: false })
         .order("name");
       if (error) {
-        console.error("categories fetch failed:", error.message);
-        return [];
+        // parent_id may not be migrated yet (0022) — fall back so the filter
+        // dropdown and hubs still populate; parent_id reads as null until then.
+        const { data: legacy, error: e2 } = await supabase
+          .from("categories")
+          .select("id,name,slug")
+          .order("position", { nullsFirst: false })
+          .order("name");
+        if (e2) {
+          console.error("categories fetch failed:", e2.message);
+          return [];
+        }
+        return (legacy ?? []).map((c) => ({ ...c, parent_id: null }));
       }
       return data ?? [];
     },

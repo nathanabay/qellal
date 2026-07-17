@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tender Opportunity Systems: A UI/UX Research Report — Qellal</title>
+<style>
+  :root { --ink:#1a1a1a; --muted:#555; --line:#d8d8d8; --accent:#0b5a4a; --band:#f4f7f6; }
+  * { box-sizing:border-box; }
+  body { font-family:"Segoe UI", Calibri, Arial, sans-serif; color:var(--ink); line-height:1.55;
+         max-width:820px; margin:40px auto; padding:0 28px; font-size:16px; }
+  h1 { font-size:30px; color:var(--accent); line-height:1.2; margin:0 0 4px; }
+  h2 { font-size:22px; color:var(--accent); margin-top:38px; border-bottom:2px solid var(--line); padding-bottom:6px; }
+  h3 { font-size:17px; margin-top:26px; }
+  p, li { color:var(--ink); }
+  .meta { color:var(--muted); font-size:14px; margin:0 0 6px; }
+  .lead { background:var(--band); border-left:4px solid var(--accent); padding:14px 18px; border-radius:4px; }
+  hr { border:none; border-top:1px solid var(--line); margin:28px 0; }
+  table { border-collapse:collapse; width:100%; margin:18px 0; font-size:13.5px; }
+  th, td { border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--accent); color:#fff; font-weight:600; }
+  tr:nth-child(even) td { background:#fafbfb; }
+  code { background:#eef2f1; padding:1px 5px; border-radius:3px; font-size:13px; }
+  a { color:var(--accent); word-break:break-word; }
+  .sources li { font-size:13.5px; margin-bottom:5px; }
+  .note { font-size:13px; color:var(--muted); font-style:italic; }
+  strong { color:#111; }
+  @media print {
+    body { margin:0; max-width:none; font-size:11.5pt; }
+    h2 { page-break-after:avoid; }
+    table, tr, td, th { page-break-inside:avoid; }
+    a { color:var(--ink); text-decoration:none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Tender Opportunity Systems: A UI/UX Research Report</h1>
+<p class="meta"><strong>Prepared for:</strong> Qellal — Ethiopian tender aggregation platform &nbsp;·&nbsp; <strong>Date:</strong> 17 July 2026</p>
+<p class="meta"><strong>Focus:</strong> User interface and user experience of e-procurement / tender-discovery systems, grounded in the low-bandwidth, mobile-heavy Ethiopian market.</p>
+
+<h2>Executive Summary</h2>
+<p class="lead">Tender and e-procurement platforms are, almost universally, hard to use. The strongest single piece of evidence comes from the Government of Canada's usability study of its procurement portal: in baseline testing, only <strong>11% of small suppliers could complete a basic tender search</strong> and just <strong>6% could find the statement of work</strong>. A redesign built on plain language, a single search box, scannable summaries, faceted filters, and the removal of PDFs raised those figures to <strong>58% and 79%</strong> — a four-to-thirteen-fold improvement driven entirely by UX, not new data. That study is the template for this report's recommendations.</p>
+<p>Across the leading platforms — TED (EU), SAM.gov (US), Contracts Finder / Find a Tender (UK), GeBIZ (Singapore), and 2merkato (Ethiopia) — the same failures recur: cluttered pages and information overload, procurement jargon, critical details buried in poorly-named PDFs, powerful-but-unintuitive search, painful registration (SAM.gov's UEI transition is the textbook case), and keyword-alert systems that generate both noise and misses. The platforms that have modernized are all converging on the model Qellal is building: <strong>match opportunities to a saved profile and notify the user</strong>.</p>
+<p>One premise in the brief needs correcting. <strong>2merkato is not missing notifications</strong> — as of 2024–25 it offers category/region email alerts and mobile push, with 50,000+ app downloads at 4.4 stars. Qellal's real opening is not the <em>presence</em> of alerts but their <em>quality and reliability</em>: 2merkato's documented weaknesses are buggy search, broken in-page links, no copy/PDF export, an aging UI, and opaque pricing. Qellal wins by doing relevance, search, and mobile performance demonstrably better — leaning on <strong>Telegram</strong>, which is uniquely dominant and data-light in Ethiopia.</p>
+<p>The Ethiopian context sharpens every decision: internet penetration ~<strong>21%</strong>, smartphone ownership near <strong>15%</strong>, <strong>3G the realistic baseline</strong> (98% coverage vs. 33% for 4G), and device/data affordability the top barrier. This mandates an offline-capable, text-first, aggressively performance-budgeted product, localized in Amharic (Ethiopic script, left-to-right), with flat navigation for first-time internet users.</p>
+
+<h2>1. Context and Method</h2>
+<p>Qellal aggregates Ethiopian tender notices from newspapers, newsletters, and government portals (including egp.gov.et) and pushes relevant opportunities to companies and NGOs via email and Telegram. It is a zero-budget MVP (Next.js + Supabase + Python scrapers) targeting a mobile-first, low-bandwidth audience, positioned against the incumbent <strong>2merkato</strong> on user experience and notification quality.</p>
+<p>The report was produced by fanning out five parallel research streams — pain points, design best practices, platform comparison, interaction patterns, and emerging-market context — each fetching primary sources (government usability studies, GOV.UK and US design-system guidance, W3C/WCAG standards, Nielsen Norman Group and Baymard research, GSMA and DataReportal statistics, and platform documentation). Conflicting or unverifiable claims are flagged in the text; all sources are listed in Section 9.</p>
+
+<h2>2. Common UI/UX Pain Points in Existing Tender Systems</h2>
+<h3>2.1 Information overload and clutter</h3>
+<p>The dominant complaint is that tender interfaces overwhelm users. The Canada study attributed task failure to "a lot of information, cluttered pages difficult to scan, technical terminology and jargon," and to "link splatter." Homepage "canned searches" returned large volumes of expired opportunities. The EU Parliament's SME briefing and OECD's procurement work confirm that undue complexity measurably lowers small-supplier participation.</p>
+<h3>2.2 Critical information buried in PDFs</h3>
+<p>In the Canada study, crucial details were locked inside PDFs with meaningless filenames; removing them — surfacing key facts as scannable HTML — was a top driver of improvement. 2merkato users report the mirror-image problem: no copy-text and no PDF export.</p>
+<h3>2.3 Powerful but unintuitive search</h3>
+<p>TED's search is "powerful but not always intuitive," with results only in the original publication language. SAM.gov's keyword search is limited enough that GSA publicly named improving it a priority. 2merkato's app historically shipped without search; when added, 2025 reviews call it buggy ("titles don't match what's inside").</p>
+<h3>2.4 Registration and onboarding friction</h3>
+<p>The largest documented cluster, and SAM.gov is the cautionary tale. The 2022 DUNS-to-UEI switch produced "substantial verification and validation delays"; trivial data mismatches push validation into multi-week manual queues, and full registration is widely reported to take two to four weeks. GeBIZ imposes a paid annual subscription, CorpPass identity, and a multi-day wait.</p>
+<h3>2.5 Keyword alerts that both flood and miss</h3>
+<p>Exact-match keyword alerts miss a tender titled "digital service desk provision" when the user searched "IT support," while broad configs produce "hundreds of notifications arriving daily" and alert fatigue. TED indexes only above-threshold contracts, a systematic coverage gap for SMEs.</p>
+<h3>2.6 Migration and reliability disruption</h3>
+<p>TED's 2023 eForms migration made notices more machine-readable but harder to read; SAM.gov's UEI transition spiked help-desk tickets; the UK Review Service logged recurring "technical issue with e-portal" concerns. <span class="note">Evenhandedness: Contracts Finder is a partial counter-example (more SME-accessible, milder complaints), and independent GeBIZ usability critiques are thin in public sources.</span></p>
+
+<h2>3. Best Practices for User-Centered Design in Procurement Workflows</h2>
+<h3>3.1 Start with user needs; iterate in small releases</h3>
+<p>The UK's foremost design principle is to start with real user needs, "because what they ask for isn't always what they need." Release a minimal service and iterate alpha → beta → live, because iteration "reduces risk." USWDS adds a principle vital for a money-decision aggregator: <strong>earn trust</strong> — identify the source and authority of every tender, consistently and securely.</p>
+<h3>3.2 Consistency lowers the learning curve</h3>
+<p>Reuse the same language and patterns across the service to reduce cognitive load. For Qellal: one tender-card pattern, one filter pattern, one notification pattern everywhere.</p>
+<h3>3.3 Form design for complex flows</h3>
+<p>Ask <strong>one thing per page</strong> for complex flows — it "reduces the cognitive load" and eases error recovery. Fix question order and count before adding a progress bar. Validate <strong>inline, after the user leaves a field</strong>, never as they type. Make errors explicit, human, polite, precise, and constructive. Reduce load via chunking, defaults, minimal input, and clear labels.</p>
+<h3>3.4 Plain language, even for specialists</h3>
+<p>GOV.UK research: even specialists prefer plain English (80% preferred clear English; 97% preferred "among other things" over "inter alia"). Aim for a reading age of ~9; explain procurement terms on first use — doubly important for first-time internet users.</p>
+<h3>3.5 The aggregator pattern is validated precedent</h3>
+<p>SAM.gov's modernization — saved-search alerts, natural-language search, modular releases — is the same "match to a profile and notify" model Qellal is building. Qellal is applying a government-validated pattern to an underserved market.</p>
+
+<h2>4. Accessibility, Information Architecture, and User Journey Mapping</h2>
+<h3>4.1 Accessibility: target WCAG 2.2 Level AA</h3>
+<p>Level AA is the near-universal regulatory baseline. Text contrast must be at least <strong>4.5:1</strong> (3:1 for large text); UI components need <strong>3:1</strong>. New 2.2 AA criteria that hit a tender product: <strong>Redundant Entry</strong> (don't ask twice — favors register-once), <strong>Accessible Authentication</strong> (no recall/puzzle logins — supports magic-link/Telegram auth), <strong>Target Size</strong> (≥24×24 px; ~44 px for thumbs), <strong>Focus Not Obscured</strong> (sticky bars must not hide the focused field), and <strong>Dragging Movements</strong> (provide a non-drag alternative). The Ethiopic (Ge'ez) script is <strong>left-to-right</strong> — no RTL work — but needs a well-hinted font tested with mixed Amharic + Latin strings at 375 px.</p>
+<h3>4.2 Information architecture: faceted search done right</h3>
+<p>Make facet categories <strong>appropriate, predictable, jargon-free, and prioritized</strong>. For tenders the high-value facets are <strong>sector/category, submission deadline, region, buyer/agency, and contract value</strong>. Offer domain-specific facets, show a <strong>result count next to each option</strong> ("Construction (34)"), and never dead-end at zero results — offer a recovery path.</p>
+<h3>4.3 User journey mapping: discover → qualify → prepare → submit → track</h3>
+<ol>
+  <li><strong>Discover</strong> — alert or browse. Implication: alert relevance and list scannability.</li>
+  <li><strong>Qualify</strong> — decide if worth pursuing. Implication: deadline, buyer, sector, value above the fold, in plain language, no PDF required.</li>
+  <li><strong>Prepare</strong> — gather documents (mostly off-platform). Implication: trivial save/share/export — the exact thing 2merkato users cannot do.</li>
+  <li><strong>Submit</strong> — on the source portal (egp.gov.et). Implication: clean, reliable outbound links (2merkato's broken links fail here).</li>
+  <li><strong>Track</strong> — monitor deadlines and outcomes. Implication: saved tenders, deadline reminders, status.</li>
+</ol>
+<p>Apply <strong>progressive disclosure</strong> throughout — primary options by default, advanced facets and full text on demand.</p>
+
+<h2>5. Comparative Review of Leading Tender Platforms</h2>
+<table>
+  <thead>
+    <tr><th>Platform</th><th>Owner / Region</th><th>Cost to search</th><th>Registration to bid</th><th>Saved search &amp; alerts</th><th>Mobile</th><th>Modernization</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>TED</strong></td><td>EU Publications Office</td><td>Free</td><td>N/A (bid on member-state systems)</td><td>Email search/notice alerts (My dashboard)</td><td>Responsive web</td><td>Jan 2024 redesign; eForms</td></tr>
+    <tr><td><strong>SAM.gov</strong></td><td>US GSA / IAE</td><td>Free</td><td>Yes — entity registration</td><td>Multiple saved searches + email alerts; "follow"</td><td>Responsive web</td><td>FBO → beta.SAM → SAM.gov (2021)</td></tr>
+    <tr><td><strong>Contracts Finder / Find a Tender</strong></td><td>UK Cabinet Office</td><td>Free</td><td>Yes — register once (CDP)</td><td>Saved searches + email alerts</td><td>Responsive GOV.UK web</td><td>Central Digital Platform, Feb 2025</td></tr>
+    <tr><td><strong>GeBIZ</strong></td><td>Singapore MOF</td><td>Free browse</td><td>Yes — paid GTP sub (~SGD 800/yr) + CorpPass</td><td>Portal / account notifications</td><td>Web portal</td><td>Tender Lite + Supplier File Repository (2024)</td></tr>
+    <tr><td><strong>2merkato</strong></td><td>eBiz Online Solutions PLC (Ethiopia)</td><td>Freemium — paid full access (<em>price unverified</em>)</td><td>Account (email or phone)</td><td>Category/region email + mobile push</td><td>iOS + Android apps (offline)</td><td>Mobile apps; Amharic/English/Oromo</td></tr>
+  </tbody>
+</table>
+<p><strong>TED (EU).</strong> Authoritative EU-wide coverage, powerful multilingual/expert search, open data/API, auto-translation, free. Weaknesses: eForms made notices harder for humans to read; search unintuitive; results in original language; only above-threshold contracts indexed.</p>
+<p><strong>SAM.gov (US).</strong> One portal for opportunities + registration + awards; robust saved-search/alert system. Weaknesses: widely seen as hard to use; selecting a domain can wipe prior filters; limited keyword search; the UEI registration transition was a documented disaster. Lesson: registration friction and destructive filter behavior lose SME users fastest.</p>
+<p><strong>Contracts Finder / Find a Tender (UK).</strong> Free, open, strong award-history transparency, and a 2025 register-once Central Digital Platform (a direct application of Redundant Entry). Weaknesses: two services confuse users; split coverage forces monitoring both. The model to emulate on data unification and register-once.</p>
+<p><strong>GeBIZ (Singapore).</strong> Mature end-to-end lifecycle, internationally open, actively modernizing (Tender Lite; Supplier File Repository for upload-once reuse). Weaknesses: registration friction; thin independent UX critique. Validates Qellal's simplicity-first thesis.</p>
+<p><strong>2merkato (Ethiopia).</strong> Dominant local coverage; genuine multilingual support (Amharic/English/Oromo); low signup barrier; web + apps with offline access; 50,000+ downloads at ~4.4 stars. <strong>It does have notifications</strong> (email + push), so the "lacks notifications" premise is inaccurate. Documented weaknesses: buggy/absent search, broken in-page links, no copy/PDF export, dated UI, weaker coverage outside Addis, and opaque pricing (client-side pricing page returns no readable content — treat any figure as unverified).</p>
+<p><strong>Implication for Qellal:</strong> differentiation is <em>executing the fundamentals better than a distracted incumbent</em> — relevant low-noise notifications; fast accurate search; scannable detail with working links and one-tap export; a clean mobile-first UI; transparent pricing. Every 2merkato weakness is a concrete, addressable gap.</p>
+
+<h2>6. Modern Interaction Patterns to Adopt</h2>
+<h3>6.1 Search and filtering</h3>
+<p>Instant filtering on desktop; a batched "Show X results" apply button on mobile with a live count. Allow multi-select within a category (OR within a facet, AND across facets). Persist filter/sort state in the URL so it survives back-navigation. Keep the filter trigger sticky, label it "Filter"/"Refine" (not a cryptic icon), and size tap targets ~44 px.</p>
+<h3>6.2 Mobile faceted search</h3>
+<p>Present facets as a full-screen or bottom-sheet drawer overlaid on the results (NN/g's "tray" pattern), keeping some results visible. Collapse lower-priority groups into accordions; keep region and deadline expanded; offer search-within-a-list for long option sets.</p>
+<h3>6.3 Notifications and digests — Qellal's core feature</h3>
+<p>Let users choose <strong>frequency</strong> (instant / daily / weekly digest); batching improves open rates and reduces unsubscribes. Default to alerts matching saved criteria only. Design digest emails single-column, each tender in 2–3 lines (title, buyer, deadline) with one "View tender" CTA on a predictable schedule. For <strong>Telegram</strong>, respect rate limits (~30 msg/sec bulk, 1/sec per chat), back off on HTTP 429, and offer <code>/stop</code> — free, instant opt-out unlike SMS.</p>
+<h3>6.4 Personalization</h3>
+<p>Place "recommended for you" content <strong>high on the page</strong> — low placement makes it "basically worthless." State the source ("Based on your saved searches"), label categories, and let feedback update recommendations immediately.</p>
+<h3>6.5 Mobile responsiveness and low-bandwidth performance</h3>
+<p>Enforce a <strong>performance budget</strong> (under ~170 KB critical path, under 5 s TTI on 3G) in CI. Build a data-light PWA with service-worker caching (cache-first for static, network-first for tender data), lazy loading, and hard image optimization. Twitter Lite (a PWA) loaded in under 3 s on 2G with up to 70% data savings — the target class of result.</p>
+
+<h2>7. Emerging-Market Context: Designing for Ethiopia</h2>
+<p>Internet penetration is ~<strong>21%</strong> (~28.6M users, Jan 2025), smartphone ownership ~<strong>15%</strong> with a severe gender gap (18% men vs. 6% women), and many of the 85M cellular connections are voice/SMS-only. <strong>3G is the realistic baseline</strong> (98% coverage vs. 33% for 4G). Data is relatively affordable (~US$0.68/GB in 2023) but <strong>device cost is the dominant barrier</strong>, and ~70% of covered Ethiopians still don't use mobile internet. <span class="note">(The 15% smartphone figure is GSMA-derived secondary data — approximate.)</span></p>
+<p>Three consequences: (1) <strong>Telegram is the right channel</strong> — Ethiopia is a global outlier where Telegram leads for broadcast and is markedly data-light, though "most popular messenger" is contested, so keep email in parallel. (2) Design for <strong>first-time users and lower digital literacy</strong> (Ethiopia's #2 adoption barrier): flat navigation, plain Amharic/English, icons with text, guided first-use. (3) Build <strong>offline-first</strong> (Google's "Build for Billions"): assume WiFi → 3G → 2G → offline, cache aggressively, lazy-load, optimize images, expose data controls.</p>
+<p>On the supply side, Ethiopia's national <strong>e-Procurement portal</strong> (egp.gov.et, Public Procurement Authority) — piloted 2021, expanded 2023 to 74 federal agencies, 19,000+ suppliers, 150+ active tenders — is Qellal's primary structured data source and "submit" destination. <span class="note">(Market-size figures like "$9B/yr" are from commercial sources, not official — indicative only.)</span></p>
+
+<h2>8. Actionable Recommendations for Qellal</h2>
+<h3>Notifications (highest-leverage differentiator)</h3>
+<p>Beat 2merkato on relevance and reliability, not existence. Subscribe by category, keyword, and region; default alerts to saved criteria only; offer instant / daily / weekly frequency. Ship Telegram broadcast + email digest with rate-limit backoff and <code>/stop</code>. Move beyond brittle exact-keyword matching (synonyms/related terms) so "IT support" also catches "digital service desk."</p>
+<h3>Search and discovery</h3>
+<p>Single prominent search box; domain facets (sector, deadline, region, buyer, value); result counts per facet; no zero-result dead-ends; filter state in the URL; mobile tray with a batched "Show results" button. Test that list titles always match detail pages (2merkato's bug).</p>
+<h3>Tender detail (qualify + prepare)</h3>
+<p>Surface deadline, buyer, sector, value above the fold in plain language — no PDF required (the Canada study's biggest win). Guarantee working outbound links to the source portal, and provide one-tap <strong>copy, share, and export/save</strong> — fixing 2merkato's most-cited gaps.</p>
+<h3>Accessibility and content</h3>
+<p>WCAG 2.2 AA: 4.5:1 contrast, visible unobscured focus, ~44 px targets, no password-recall barriers (magic-link/Telegram auth). Plain Amharic and English; explain terms on first use; ship a hinted Ethiopic font tested at 375 px.</p>
+<h3>Performance and reach</h3>
+<p>Enforce the performance budget (&lt;170 KB critical path, &lt;5 s TTI on 3G) in CI. Offline-capable PWA with service-worker caching, lazy loading, hard image optimization. Flat, icon-supported navigation and guided first-use for first-time users.</p>
+<h3>Trust and transparency</h3>
+<p>Label the source and date of every tender (USWDS "earn trust"). Make pricing transparent from day one — 2merkato's opacity is a gap Qellal can own. Register-once for saved preferences (avoid redundant entry), per the UK CDP model.</p>
+<h3>Process</h3>
+<p>Research real Ethiopian bidder needs before building filters; release minimal and iterate; reuse one card/filter/notification pattern; journey-map the five stages. The Canada study proves disciplined UX on the <em>same data</em> can lift task success four- to thirteen-fold — the wedge Qellal has against the incumbent.</p>
+
+<h2>9. Sources</h2>
+<p class="note">All URLs accessed 17 July 2026.</p>
+<p><strong>Pain points &amp; government usability research</strong></p>
+<ul class="sources">
+  <li>Government of Canada — Electronic Procurement research summary: <a href="https://design.canada.ca/research-summaries/electronic-procurement-research-summary.html">link</a></li>
+  <li>European Parliament — SME access to public procurement (2018): <a href="https://www.europarl.europa.eu/RegData/etudes/BRIE/2018/618990/IPOL_BRI(2018)618990_EN.pdf">link</a></li>
+  <li>OECD — Digital Transformation of Public Procurement (2025): <a href="https://www.oecd.org/content/dam/oecd/en/publications/reports/2025/06/digital-transformation-of-public-procurement_90ace30d/79651651-en.pdf">link</a></li>
+  <li>U.S. GAO — award-eligibility data quality (GAO-26-107466): <a href="https://www.gao.gov/products/gao-26-107466">link</a></li>
+  <li>Crowell — SAM UEI transition delays: <a href="https://www.crowell.com/en/insights/client-alerts/sam-transition-to-uei-plagued-with-registration-processing-delays">link</a></li>
+  <li>APEX NorCal — SAM.gov entity validation delays: <a href="https://www.apexnorcal.org/2022/05/31/sam-gov-entity-validation-processing-delays/">link</a></li>
+  <li>GFOA — SLFRF recipients SAM.gov issues: <a href="https://www.gfoa.org/slfrf-recipients-still-experiencing-sam.gov-issues">link</a></li>
+  <li>PilieroMazza — SAM.gov verification requirement: <a href="https://www.pilieromazza.com/new-verification-requirement-for-sam-gov-now-applies-to-existing-entities/">link</a></li>
+  <li>Commercial Consulting — over-reliance on keyword alerts: <a href="https://www.commercial-consulting.co.uk/post/over-reliance-on-manual-searches-and-email-notifications">link</a></li>
+  <li>UK Public Procurement Review Service (2023-24): <a href="https://www.gov.uk/government/publications/mystery-shopper-progress-reports/public-procurement-review-service-progress-report-2023-24-html">link</a></li>
+</ul>
+<p><strong>Design best practices, accessibility, IA, journey mapping</strong></p>
+<ul class="sources">
+  <li>GOV.UK Government Design Principles: <a href="https://www.gov.uk/guidance/government-design-principles">link</a></li>
+  <li>GOV.UK — one thing per page: <a href="https://designnotes.blog.gov.uk/2015/07/03/one-thing-per-page/">link</a></li>
+  <li>GOV.UK Design System — question pages: <a href="https://design-system.service.gov.uk/patterns/question-pages/">link</a></li>
+  <li>GOV.UK content design — writing for GOV.UK: <a href="https://www.gov.uk/guidance/content-design/writing-for-gov-uk">link</a></li>
+  <li>GOV.UK Design System — notification banner: <a href="https://design-system.service.gov.uk/components/notification-banner/">link</a></li>
+  <li>U.S. Web Design System — design principles: <a href="https://designsystem.digital.gov/design-principles/">link</a></li>
+  <li>18F — journey mapping method: <a href="https://guides.18f.gov/methods/decide/journey-mapping/">link</a></li>
+  <li>W3C WAI — what's new in WCAG 2.2: <a href="https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/">link</a></li>
+  <li>W3C — Understanding Contrast (Minimum): <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">link</a></li>
+  <li>W3C — Ethiopic Layout Requirements: <a href="https://www.w3.org/TR/elreq/">link</a></li>
+  <li>NN/g — web form design: <a href="https://www.nngroup.com/articles/web-form-design/">link</a></li>
+  <li>NN/g — form error guidelines: <a href="https://www.nngroup.com/articles/errors-forms-design-guidelines/">link</a></li>
+  <li>NN/g — progressive disclosure: <a href="https://www.nngroup.com/articles/progressive-disclosure/">link</a></li>
+  <li>ICF — GSA SAM.gov modernization case study: <a href="https://www.icf.com/clients/technology/gsa-iae-sam-gov-modernization">link</a></li>
+</ul>
+<p><strong>Platform comparison</strong></p>
+<ul class="sources">
+  <li>TED — "Welcome to the new TED": <a href="https://ted.europa.eu/en/news/welcome-to-the-new-ted">link</a></li>
+  <li>European Commission — Tenders Electronic Daily overview: <a href="https://single-market-economy.ec.europa.eu/single-market/public-procurement/digital-procurement/tenders-electronic-daily_en">link</a></li>
+  <li>TenderWolf — TED knowledge base: <a href="https://tenderwolf.com/en/knowledge-base/ted-european-publication/">link</a></li>
+  <li>SAM.gov opportunities: <a href="https://sam.gov/opportunities">link</a></li>
+  <li>FederalSchedules — beta.SAM → SAM.gov merge: <a href="https://gsa.federalschedules.com/resources/out-with-the-beta-in-with-the-new-sam-gov/">link</a></li>
+  <li>GOV.UK — Contracts Finder: <a href="https://www.gov.uk/contracts-finder">link</a> · Find a Tender: <a href="https://www.find-tender.service.gov.uk/Search">link</a></li>
+  <li>GOV.UK — Central Digital Platform guide: <a href="https://www.gov.uk/government/publications/procurement-act-2023-short-guides/buyers-and-suppliers-how-to-use-the-central-digital-platform-the-enhanced-find-a-tender-service-html">link</a></li>
+  <li>GeBIZ (official): <a href="https://www.gebiz.gov.sg/">link</a> · Tender Lite guide: <a href="https://www.gebiz.gov.sg/docs/SUPPLIER_Guide_Tender_Lite_2025_1.pdf">link</a></li>
+  <li>Centre for Public Impact — GeBIZ case: <a href="https://centreforpublicimpact.org/public-impact-fundamentals/gebiz-government-e-procurement-system-in-singapore/">link</a></li>
+  <li>2merkato — About: <a href="https://www.2merkato.com/59-about-2merkatocom">link</a> · Tender service: <a href="https://tender.2merkato.com/">link</a></li>
+  <li>2merkato Tenders — Google Play (reviews): <a href="https://play.google.com/store/apps/details?id=com.ebiz.tender&hl=en">link</a> · App Store: <a href="https://apps.apple.com/us/app/2merkato-tenders/id6739552012">link</a></li>
+</ul>
+<p><strong>Interaction patterns, personalization, performance</strong></p>
+<ul class="sources">
+  <li>Baymard — ecommerce filter UI: <a href="https://baymard.com/learn/ecommerce-filter-ui">link</a></li>
+  <li>NN/g — filter categories and values: <a href="https://www.nngroup.com/articles/filter-categories-values/">link</a></li>
+  <li>NN/g — mobile faceted search: <a href="https://www.nngroup.com/articles/mobile-faceted-search/">link</a></li>
+  <li>NN/g — recommendation guidelines: <a href="https://www.nngroup.com/articles/recommendation-guidelines/">link</a></li>
+  <li>NN/g — smart-home notifications: <a href="https://www.nngroup.com/articles/smart-home-notifications/">link</a></li>
+  <li>Telegram Bot FAQ (rate limits): <a href="https://core.telegram.org/bots/faq">link</a></li>
+  <li>web.dev — performance budgets 101: <a href="https://web.dev/articles/performance-budgets-101">link</a></li>
+  <li>web.dev — Progressive Web Apps: <a href="https://web.dev/explore/progressive-web-apps">link</a></li>
+</ul>
+<p><strong>Ethiopia / emerging-market context</strong></p>
+<ul class="sources">
+  <li>DataReportal — Digital 2025: Ethiopia: <a href="https://datareportal.com/reports/digital-2025-ethiopia">link</a></li>
+  <li>GSMA — Mobile Economy Sub-Saharan Africa 2024: <a href="https://event-assets.gsma.com/pdf/GSMA_ME_SSA_2024_Web.pdf">link</a></li>
+  <li>Birr Metrics — Ethiopia mobile gender gap / smartphone access: <a href="https://birrmetrics.com/ethiopia-narrows-mobile-gender-gap-to-24-but-smartphone-access-for-women-remains-just-6/">link</a></li>
+  <li>Google — Build for Billions: <a href="https://developer.android.com/docs/quality-guidelines/build-for-billions">link</a></li>
+  <li>Microsoft Research — UIs for low-literate users: <a href="https://www.microsoft.com/en-us/research/project/uis-low-literate-users/">link</a></li>
+  <li>Sagaci Research — Telegram in Ethiopia: <a href="https://sagaciresearch.com/preferred-social-media-and-communication-apps-across-africa-what-makes-telegram-a-success-in-ethiopia/">link</a></li>
+  <li>trade.gov — Ethiopia e-procurement platform: <a href="https://www.trade.gov/market-intelligence/ethiopia-e-procurement-platform-provides-easy-access-public-tenders">link</a></li>
+  <li>Ethiopia e-GP portal: <a href="https://production.egp.gov.et/">link</a></li>
+</ul>
+
+<hr>
+<p class="note">Verification notes: 2merkato's exact subscription pricing could not be confirmed (client-side pricing page returns no readable content). The premise that 2merkato "lacks notifications" is inaccurate as of 2024–25 — it offers email and push alerts. Ethiopian smartphone-penetration (~15%) and Telegram data-usage figures rely on secondary/GSMA-derived sources and are approximate. The "$9B" Ethiopian procurement market size is from a commercial source, not official. NN/g percentage claims from third-party blogs were not independently verified; only qualitative NN/g guidance is cited.</p>
+
+</body>
+</html>

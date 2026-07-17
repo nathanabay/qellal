@@ -1,7 +1,52 @@
 import { getSupabase } from "./supabase";
-import type { TenderInput } from "./types";
+import type { TenderInput, TaxonomyRow } from "./types";
 
 export type SaveResult = { inserted: number; skipped: number };
+
+// Sync 2merkato's category taxonomy into the `categories` table so the stored
+// hierarchy (parent_id) and order (position) stay identical to 2merkato after
+// every scrape — instead of drifting as leaf categories are created ad hoc.
+// Two passes: upsert names+positions first (so every row exists), then resolve
+// parent slugs → ids and set parent_id.
+export async function syncCategoryTaxonomy(rows: TaxonomyRow[]): Promise<void> {
+  if (rows.length === 0) return;
+  const supabase = getSupabase();
+
+  // Pass 1: upsert name + position by slug (creates missing, updates existing).
+  const { error: upErr } = await supabase
+    .from("categories")
+    .upsert(
+      rows.map((r) => ({ name: r.name, slug: r.slug, position: r.position })),
+      { onConflict: "slug" },
+    );
+  if (upErr) {
+    console.error("category taxonomy upsert failed:", upErr.message);
+    return;
+  }
+
+  // Pass 2: resolve slugs → ids, then set parent_id for every row (null for
+  // top-level, so re-parented/promoted categories self-correct each run).
+  const { data: cats, error: selErr } = await supabase
+    .from("categories")
+    .select("id,slug");
+  if (selErr) {
+    console.error("category id lookup failed:", selErr.message);
+    return;
+  }
+  const idBySlug = new Map<string, number>(
+    (cats ?? []).map((c: { id: number; slug: string }) => [c.slug, c.id]),
+  );
+  const parentUpdates = rows
+    .filter((r) => idBySlug.has(r.slug))
+    .map((r) => ({
+      id: idBySlug.get(r.slug)!,
+      parent_id: r.parentSlug ? (idBySlug.get(r.parentSlug) ?? null) : null,
+    }));
+  const { error: pErr } = await supabase
+    .from("categories")
+    .upsert(parentUpdates, { onConflict: "id" });
+  if (pErr) console.error("category parent sync failed:", pErr.message);
+}
 
 // Every source_url already stored (any status), so a scraper can skip tenders
 // it has seen before instead of re-fetching their detail pages.
@@ -91,10 +136,19 @@ export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
   });
 
   // Insert tenders and get their ids back so we can write the category join rows.
-  const { data: insertedRows, error: insErr } = await supabase
+  let { data: insertedRows, error: insErr } = await supabase
     .from("tenders")
     .insert(payload)
     .select("id,source_url");
+  if (insErr && /posted_at/.test(insErr.message)) {
+    // posted_at column not migrated (0023) yet — retry without it so the scrape
+    // still lands rows; posted_at fills in once the migration is applied.
+    const stripped = payload.map(({ posted_at, ...rest }) => rest);
+    ({ data: insertedRows, error: insErr } = await supabase
+      .from("tenders")
+      .insert(stripped)
+      .select("id,source_url"));
+  }
   if (insErr) throw new Error(`insert failed: ${insErr.message}`);
 
   const urlToId = new Map(

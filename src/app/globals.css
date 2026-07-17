@@ -170,3 +170,25 @@ summary {
 .tender-desc [style*="text-align:justify"] {
   text-align: justify;
 }
+
+/* Print / "Save as PDF" (F: tender export). Strip site chrome and flatten the
+   dark deadline card to black-on-white so it doesn't dump a slab of ink. */
+@media print {
+  .no-print,
+  header,
+  footer {
+    display: none !important;
+  }
+  .tender-detail-grid {
+    display: block !important;
+  }
+  .tender-deadline-card {
+    background: #fff !important;
+    box-shadow: none !important;
+    border: 1px solid #000 !important;
+    margin-top: 1.5rem;
+  }
+  .tender-deadline-card * {
+    color: #000 !important;
+  }
+}

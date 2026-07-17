@@ -15,12 +15,18 @@ async function requireUser() {
 
 export async function updateNotificationPrefs(formData: FormData) {
   const { supabase, user } = await requireUser();
+  const freqRaw = String(formData.get("digest_frequency") ?? "daily");
+  const digest_frequency = ["off", "daily", "weekly"].includes(freqRaw)
+    ? freqRaw
+    : "daily";
   const { error } = await supabase
     .from("profiles")
     .update({
       email_notifications: formData.get("email_notifications") === "on",
       telegram_notifications: formData.get("telegram_notifications") === "on",
-      digest_mode: formData.get("digest_mode") === "on",
+      digest_frequency,
+      // Keep the legacy boolean in sync so any older reader stays correct.
+      digest_mode: digest_frequency !== "off",
       deadline_reminders: formData.get("deadline_reminders") === "on",
     })
     .eq("id", user.id);

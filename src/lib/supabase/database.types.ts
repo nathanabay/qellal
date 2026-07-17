@@ -183,9 +183,27 @@ export type Database = {
       };
       categories: {
         Relationships: [];
-        Row: { id: number; name: string; slug: string };
-        Insert: { id?: number; name: string; slug: string };
-        Update: { id?: number; name?: string; slug?: string };
+        Row: {
+          id: number;
+          name: string;
+          slug: string;
+          position: number | null;
+          parent_id: number | null;
+        };
+        Insert: {
+          id?: number;
+          name: string;
+          slug: string;
+          position?: number | null;
+          parent_id?: number | null;
+        };
+        Update: {
+          id?: number;
+          name?: string;
+          slug?: string;
+          position?: number | null;
+          parent_id?: number | null;
+        };
       };
       tender_categories: {
         Relationships: [];
@@ -266,6 +284,7 @@ export type Database = {
           email_notifications: boolean | null;
           telegram_notifications: boolean | null;
           digest_mode: boolean | null;
+          digest_frequency: string;
           deadline_reminders: boolean | null;
           telegram_link_token: string;
           notifications_paused_until: string | null;
@@ -282,6 +301,7 @@ export type Database = {
           email_notifications?: boolean | null;
           telegram_notifications?: boolean | null;
           digest_mode?: boolean | null;
+          digest_frequency?: string;
           deadline_reminders?: boolean | null;
           telegram_link_token?: string;
           notifications_paused_until?: string | null;
@@ -298,6 +318,7 @@ export type Database = {
           email_notifications?: boolean | null;
           telegram_notifications?: boolean | null;
           digest_mode?: boolean | null;
+          digest_frequency?: string;
           deadline_reminders?: boolean | null;
           telegram_link_token?: string;
           notifications_paused_until?: string | null;

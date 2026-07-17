@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { TenderCard, type TenderCardData } from "./TenderCard";
-import { TenderFilters, type FilterState, type Scope } from "./TenderFilters";
+import { TenderFilters, type FilterState } from "./TenderFilters";
 import type { Category } from "@/lib/tenders";
+import { normalizeSearch, tenderMatchesSearch } from "@/lib/search";
 import { daysLeft } from "@/lib/format";
 import { createAlertFromSearch } from "@/app/tenders/actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
@@ -12,9 +13,105 @@ import { BellIcon } from "@/components/ui/icons";
 
 const PAGE_SIZE = 24;
 
-// Filters the already-loaded list instantly (no server round-trip per tweak),
-// syncing to the URL so results stay shareable. Adds scope (open/closed/all),
-// facet counts, removable chips, sort, and pagination.
+type View = {
+  filtered: TenderCardData[];
+  categoryCounts: Record<string, number>;
+  regionCounts: Record<string, number>;
+  scopeTotal: number;
+};
+
+// The source "Published on" date is free text like "Jul 16, 2026" — and may be a
+// comma-joined list when a tender ran in several sources. Pull out every date
+// token and use the most recent; fall back to the system published_date.
+function publishedTs(t: TenderCardData): number {
+  const raw = t.published_on ?? "";
+  const tokens = raw.match(/[A-Za-z]{3,9}\.?\s+\d{1,2},\s*\d{4}/g);
+  let best = -Infinity;
+  for (const tok of tokens ?? []) {
+    const ms = Date.parse(tok);
+    if (!Number.isNaN(ms) && ms > best) best = ms;
+  }
+  if (best === -Infinity && t.published_date) {
+    const ms = Date.parse(t.published_date);
+    if (!Number.isNaN(ms)) best = ms;
+  }
+  return best === -Infinity ? 0 : best;
+}
+
+// Pure derivation of the visible list + per-facet counts for a given filter
+// state. This browser only handles the preloaded OPEN set (scope is server-
+// driven via ScopeToggle), so there's no open/closed filtering here.
+function deriveView(
+  tenders: TenderCardData[],
+  f: FilterState,
+  categories: Category[],
+): View {
+  const idToSlug = new Map<number, string>();
+  for (const c of categories) idToSlug.set(c.id, c.slug);
+  const catId = categories.find((c) => c.slug === f.category)?.id ?? null;
+  const maxDays = f.deadline === "7" ? 7 : f.deadline === "30" ? 30 : null;
+
+  const tenderCatIds = (t: TenderCardData) =>
+    t.category_ids?.length
+      ? t.category_ids
+      : t.category_id != null
+        ? [t.category_id]
+        : [];
+  const passesRegion = (t: TenderCardData) => !f.region || t.region === f.region;
+  const passesDeadline = (t: TenderCardData) =>
+    maxDays === null || daysLeft(t.deadline) <= maxDays;
+  const passesBidBond = (t: TenderCardData) => !f.bidBond || Boolean(t.bid_bond);
+  const passesCategory = (t: TenderCardData) =>
+    !f.category || (catId != null && tenderCatIds(t).includes(catId));
+
+  // Same normalization as the server (see @/lib/search) so Open and the archive
+  // treat identical input identically. Matches title + buyer.
+  const q = normalizeSearch(f.q).toLowerCase();
+  const scoped = tenders.filter((t) => tenderMatchesSearch(t, q));
+
+  // Counts reflect all OTHER active facets (so each is "what you'd get").
+  const categoryCounts: Record<string, number> = {};
+  for (const t of scoped) {
+    if (!passesRegion(t) || !passesDeadline(t) || !passesBidBond(t)) continue;
+    for (const id of tenderCatIds(t)) {
+      const slug = idToSlug.get(id);
+      if (slug) categoryCounts[slug] = (categoryCounts[slug] ?? 0) + 1;
+    }
+  }
+  const regionCounts: Record<string, number> = {};
+  for (const t of scoped) {
+    if (!passesCategory(t) || !passesDeadline(t) || !passesBidBond(t)) continue;
+    if (t.region) regionCounts[t.region] = (regionCounts[t.region] ?? 0) + 1;
+  }
+  const scopeTotal = scoped.filter(
+    (t) => passesRegion(t) && passesDeadline(t) && passesBidBond(t),
+  ).length;
+
+  const passing = scoped.filter(
+    (t) =>
+      passesCategory(t) &&
+      passesRegion(t) &&
+      passesDeadline(t) &&
+      passesBidBond(t),
+  );
+
+  // "Recently published" sorts by the source "Published on" date; "Deadline"
+  // shows soonest-closing first. (All rows here are open, so no open/closed
+  // ordering is needed.)
+  const decorated = passing.map((t) => ({ t, pub: publishedTs(t) }));
+  decorated.sort((a, b) =>
+    f.sort === "recent"
+      ? b.pub - a.pub
+      : a.t.deadline.localeCompare(b.t.deadline),
+  );
+  const filtered = decorated.map((d) => d.t);
+
+  return { filtered, categoryCounts, regionCounts, scopeTotal };
+}
+
+// Instant, client-side filtering over the preloaded OPEN tenders (a small set),
+// synced to the URL so views are shareable. On mobile, filters live in a
+// bottom-sheet tray with a batched "Show N results" apply.
 export function TenderBrowser({
   tenders,
   categories,
@@ -35,7 +132,6 @@ export function TenderBrowser({
 
   const [f, setF] = useState<FilterState>({
     q: searchParams.get("q") ?? "",
-    scope: (searchParams.get("scope") as Scope) || "open",
     category: searchParams.get("category") ?? "",
     region: searchParams.get("region") ?? "",
     deadline: searchParams.get("deadline") ?? "",
@@ -51,100 +147,40 @@ export function TenderBrowser({
     [],
   );
 
-  const idToSlug = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const c of categories) m.set(c.id, c.slug);
-    return m;
-  }, [categories]);
-  const catId = useMemo(
-    () => categories.find((c) => c.slug === f.category)?.id ?? null,
-    [f.category, categories],
+  const view = useMemo(
+    () => deriveView(tenders, f, categories),
+    [tenders, f, categories],
+  );
+  const { filtered, categoryCounts, regionCounts, scopeTotal } = view;
+
+  // Mobile tray: edits go to a draft; the list only updates on "Show results".
+  const [trayOpen, setTrayOpen] = useState(false);
+  const [draft, setDraft] = useState<FilterState>(f);
+  const draftView = useMemo(
+    () => deriveView(tenders, draft, categories),
+    [tenders, draft, categories],
+  );
+  const openTray = () => {
+    setDraft(f);
+    setTrayOpen(true);
+  };
+  const applyDraft = () => {
+    setF(draft);
+    setTrayOpen(false);
+  };
+  const updateDraft = useCallback(
+    (patch: Partial<FilterState>) => setDraft((prev) => ({ ...prev, ...patch })),
+    [],
   );
 
-  const maxDays = f.deadline === "7" ? 7 : f.deadline === "30" ? 30 : null;
-  const matchScope = useCallback(
-    (t: TenderCardData) => {
-      if (f.scope === "all") return true;
-      const open = daysLeft(t.deadline) > 0;
-      return f.scope === "open" ? open : !open;
-    },
-    [f.scope],
-  );
-
-  // Base set for facet counts: scope + keyword only.
-  const scoped = useMemo(() => {
-    const q = f.q.trim().toLowerCase();
-    return tenders.filter(
-      (t) => matchScope(t) && (!q || t.title.toLowerCase().includes(q)),
-    );
-  }, [tenders, f.q, matchScope]);
-
-  const passesRegion = (t: TenderCardData) => !f.region || t.region === f.region;
-  const passesDeadline = (t: TenderCardData) =>
-    maxDays === null || daysLeft(t.deadline) <= maxDays;
-  const passesBidBond = (t: TenderCardData) => !f.bidBond || Boolean(t.bid_bond);
-  // A tender matches a category if ANY of its categories match (the many-to-many
-  // join), falling back to the primary category_id.
-  const tenderCatIds = (t: TenderCardData) =>
-    t.category_ids?.length
-      ? t.category_ids
-      : t.category_id != null
-        ? [t.category_id]
-        : [];
-  const passesCategory = (t: TenderCardData) =>
-    !f.category || (catId != null && tenderCatIds(t).includes(catId));
-
-  // Counts reflect all OTHER active facets (so each is "what you'd get").
-  const categoryCounts = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const t of scoped) {
-      if (!passesRegion(t) || !passesDeadline(t) || !passesBidBond(t)) continue;
-      // Count a tender toward every category it belongs to.
-      for (const id of tenderCatIds(t)) {
-        const slug = idToSlug.get(id);
-        if (slug) m[slug] = (m[slug] ?? 0) + 1;
-      }
-    }
-    return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scoped, f.region, f.deadline, f.bidBond, idToSlug]);
-
-  const regionCounts = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const t of scoped) {
-      if (!passesCategory(t) || !passesDeadline(t) || !passesBidBond(t))
-        continue;
-      if (t.region) m[t.region] = (m[t.region] ?? 0) + 1;
-    }
-    return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scoped, f.category, f.deadline, f.bidBond, catId]);
-
-  const scopeTotal = useMemo(
-    () =>
-      scoped.filter(
-        (t) => passesRegion(t) && passesDeadline(t) && passesBidBond(t),
-      ).length,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scoped, f.region, f.deadline, f.bidBond],
-  );
-
-  const filtered = useMemo(() => {
-    const list = scoped.filter(
-      (t) =>
-        passesCategory(t) &&
-        passesRegion(t) &&
-        passesDeadline(t) &&
-        passesBidBond(t),
-    );
-    list.sort((a, b) =>
-      f.sort === "recent"
-        ? (b.published_date ?? "").localeCompare(a.published_date ?? "")
-        : a.deadline.localeCompare(b.deadline),
-    );
-    return list;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scoped, f.category, f.region, f.deadline, f.bidBond, f.sort, catId]);
+  useEffect(() => {
+    if (!trayOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTrayOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [trayOpen]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -153,8 +189,6 @@ export function TenderBrowser({
     safePage * PAGE_SIZE,
   );
 
-  // Reset to page 1 whenever the filters change (but keep a deep-linked page on
-  // first mount).
   const mounted = useRef(false);
   useEffect(() => {
     if (mounted.current) setPage(1);
@@ -166,7 +200,6 @@ export function TenderBrowser({
     const timer = setTimeout(() => {
       const p = new URLSearchParams();
       if (f.q) p.set("q", f.q);
-      if (f.scope !== "open") p.set("scope", f.scope);
       if (f.category) p.set("category", f.category);
       if (f.region) p.set("region", f.region);
       if (f.deadline) p.set("deadline", f.deadline);
@@ -183,11 +216,6 @@ export function TenderBrowser({
     categories.find((c) => c.slug === slug)?.name ?? slug;
 
   const chips: { label: string; clear: () => void }[] = [];
-  if (f.scope !== "open")
-    chips.push({
-      label: f.scope === "closed" ? "Closed" : "All statuses",
-      clear: () => update({ scope: "open" }),
-    });
   if (f.q) chips.push({ label: `“${f.q}”`, clear: () => update({ q: "" }) });
   if (f.category)
     chips.push({
@@ -208,7 +236,6 @@ export function TenderBrowser({
   const clearAll = () =>
     setF({
       q: "",
-      scope: "open",
       category: "",
       region: "",
       deadline: "",
@@ -218,15 +245,87 @@ export function TenderBrowser({
 
   return (
     <>
-      <TenderFilters
-        value={f}
-        onChange={update}
-        categories={categories}
-        regions={regions}
-        categoryCounts={categoryCounts}
-        regionCounts={regionCounts}
-        scopeTotal={scopeTotal}
-      />
+      {/* Desktop: filters inline and instant. */}
+      <div className="hidden lg:block">
+        <TenderFilters
+          value={f}
+          onChange={update}
+          categories={categories}
+          regions={regions}
+          categoryCounts={categoryCounts}
+          regionCounts={regionCounts}
+          scopeTotal={scopeTotal}
+        />
+      </div>
+
+      {/* Mobile: sticky trigger opens the filter tray. */}
+      <div className="sticky top-14 z-20 -mx-4 mb-3 border-b border-border bg-canvas/95 px-4 py-2 backdrop-blur lg:hidden">
+        <button
+          type="button"
+          onClick={openTray}
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          aria-haspopup="dialog"
+          aria-expanded={trayOpen}
+        >
+          Filter &amp; sort
+          {hasFilters && (
+            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-white">
+              {chips.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {trayOpen && (
+        <div
+          className="fixed inset-0 z-40 flex flex-col justify-end lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filter and sort tenders"
+        >
+          <div
+            className="absolute inset-0 bg-ink/40"
+            onClick={() => setTrayOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="relative flex max-h-[85vh] flex-col rounded-t-2xl bg-canvas shadow-[var(--shadow-lift)]">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h2 className="font-heading text-base font-semibold text-ink">
+                Filter &amp; sort
+              </h2>
+              <button
+                type="button"
+                onClick={() => setTrayOpen(false)}
+                className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-label="Close filters"
+              >
+                Close
+              </button>
+            </div>
+            <div className="overflow-y-auto px-4 py-3">
+              <TenderFilters
+                value={draft}
+                onChange={updateDraft}
+                categories={categories}
+                regions={regions}
+                categoryCounts={draftView.categoryCounts}
+                regionCounts={draftView.regionCounts}
+                scopeTotal={draftView.scopeTotal}
+              />
+            </div>
+            <div className="border-t border-border p-3">
+              <button
+                type="button"
+                onClick={applyDraft}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                Show {draftView.filtered.length}{" "}
+                {draftView.filtered.length === 1 ? "result" : "results"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Applied-filter chips — stay visible so context is never lost. */}
       {hasFilters && (
@@ -279,11 +378,16 @@ export function TenderBrowser({
           ))}
       </div>
 
+      {f.q && (
+        <p className="-mt-2 mb-4 text-xs text-muted">
+          Heads up: alerts use smart matching — they also catch related terms and
+          text inside the tender body, so an alert can be broader than this list.
+        </p>
+      )}
+
       {filtered.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface p-6 text-center text-sm text-muted">
-          {f.scope === "open"
-            ? "No open tenders match — try “All” status or removing a filter."
-            : "No tenders match — try removing a filter."}
+          No open tenders match — try “Closed” or “All”, or removing a filter.
         </div>
       ) : (
         <>

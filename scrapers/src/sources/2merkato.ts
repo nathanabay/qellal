@@ -1,5 +1,6 @@
 import { CheerioCrawler } from "crawlee";
-import type { TenderInput } from "../lib/types";
+import type { TenderInput, TaxonomyRow } from "../lib/types";
+import { parseRelativeTime, extractPostedPhrase } from "../lib/time";
 import {
   merkatoLogin,
   cookieHeaderFor,
@@ -46,6 +47,13 @@ function toDate(s: string | null | undefined): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
 }
 
+// A timestamp string (with time) → normalized ISO, or null if unparseable.
+function toIso(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const ms = Date.parse(s);
+  return Number.isNaN(ms) ? null : new Date(ms).toISOString();
+}
+
 function nameOf(v: NamePair | string | null | undefined): string | null {
   if (!v) return null;
   if (typeof v === "string") return v.trim() || null;
@@ -74,33 +82,46 @@ const catName = (n: unknown): string => {
   return (o?.en ?? o?.name_en ?? o?.am ?? "").trim();
 };
 
-// Map each child category's 2merkato id → its parent category. 2merkato reuses
-// child NAMES across parents, so we key on the stable id to pick the right
-// parent and reproduce the "Filed Under" tree exactly.
-async function fetchCategoryParents(
+// Fetch 2merkato's full category taxonomy once. Returns:
+//   parentById — each child category's 2merkato id → its parent {slug,name}.
+//     2merkato reuses child NAMES across parents, so we key on the stable id to
+//     pick the right parent and reproduce a tender's "Filed Under" tree exactly.
+//   ordered    — the whole tree flattened depth-first (parent, then its
+//     children) with a 1-based position, so the DB taxonomy matches 2merkato's
+//     structure and order. Deduped by slug (first occurrence wins).
+async function fetchTaxonomy(
   session: MerkatoSession,
-): Promise<Map<string, Cat>> {
-  const map = new Map<string, Cat>();
+): Promise<{ parentById: Map<string, Cat>; ordered: TaxonomyRow[] }> {
+  const parentById = new Map<string, Cat>();
+  const rows: TaxonomyRow[] = [];
   try {
     const r = await fetch(`${BASE}/api/v1/categories`, {
       headers: { "User-Agent": UA, Cookie: cookieHeaderFor(session), Accept: "application/json" },
     });
     const arr = (await r.json()) as {
       name: unknown;
-      children?: { id?: string }[];
+      children?: { id?: string; name?: unknown; name_en?: unknown }[];
     }[];
+    let pos = 0;
     for (const parent of arr) {
       const pname = catName(parent.name);
       const pslug = slugify(pname);
       if (!pslug) continue;
+      rows.push({ slug: pslug, name: pname, parentSlug: null, position: ++pos });
       for (const child of parent.children ?? []) {
-        if (child.id) map.set(String(child.id), { slug: pslug, name: pname });
+        if (child.id) parentById.set(String(child.id), { slug: pslug, name: pname });
+        const cname = catName(child.name_en) || catName(child.name);
+        const cslug = slugify(cname);
+        if (cslug) rows.push({ slug: cslug, name: cname, parentSlug: pslug, position: ++pos });
       }
     }
   } catch {
     /* taxonomy unavailable — fall back to leaf categories only */
   }
-  return map;
+  // Dedupe by slug (a reused child name maps to one row) keeping first seen.
+  const seen = new Set<string>();
+  const ordered = rows.filter((r) => (seen.has(r.slug) ? false : (seen.add(r.slug), true)));
+  return { parentById, ordered };
 }
 
 // A tender's full "Filed Under" set: every tagged (leaf) category plus its
@@ -198,6 +219,7 @@ export async function scrape2merkato(
   existingUrls: Set<string> = new Set(),
   onBatch?: (rows: TenderInput[]) => Promise<number>,
   startPage = 1,
+  onTaxonomy?: (rows: TaxonomyRow[]) => Promise<void>,
 ): Promise<number> {
   let stopped = false;
   const username = process.env.MERKATO_USERNAME;
@@ -213,12 +235,17 @@ export async function scrape2merkato(
     );
   }
 
-  // Parent-category map so each tender gets its full "Filed Under" tree.
-  const categoryParents = session
-    ? await fetchCategoryParents(session)
-    : new Map<string, Cat>();
+  // Fetch the full taxonomy: the parent map tags each tender's "Filed Under"
+  // tree; the ordered tree is synced into the DB so categories match 2merkato.
+  const { parentById: categoryParents, ordered: taxonomy } = session
+    ? await fetchTaxonomy(session)
+    : { parentById: new Map<string, Cat>(), ordered: [] as TaxonomyRow[] };
   if (categoryParents.size)
     console.log(`2merkato: loaded ${categoryParents.size} child→parent mappings.`);
+  if (onTaxonomy && taxonomy.length) {
+    await onTaxonomy(taxonomy);
+    console.log(`2merkato: synced ${taxonomy.length} categories (hierarchy + order).`);
+  }
 
   // Flush scraped rows in batches so progress survives a timeout/cancel.
   const BATCH_SIZE = 50;
@@ -280,6 +307,17 @@ export async function scrape2merkato(
           base.bid_document_price =
             toStr(t.bid_document_price) ?? base.bid_document_price;
           base.published_on = publishedOn(t.sources) ?? base.published_on;
+          // Convert the visible "Posted X ago" label to an exact instant (date +
+          // time). Prefer it when present; fall back to the JSON timestamp.
+          const postedFromLabel = parseRelativeTime(
+            extractPostedPhrase($("#app").text()),
+            new Date(),
+          );
+          base.posted_at =
+            postedFromLabel?.toISOString() ??
+            toIso(t.created_at ?? t.published_at) ??
+            base.posted_at ??
+            null;
         }
         buffer.push(base);
         if (buffer.length >= BATCH_SIZE) await flush();
@@ -318,6 +356,7 @@ export async function scrape2merkato(
           bid_bond: toStr(t.bid_bond),
           bid_document_price: toStr(t.bid_document_price),
           published_on: publishedOn(t.sources),
+          posted_at: toIso(t.created_at ?? t.published_at),
         };
         details.push({ url: sourceUrl, label: "detail", userData: { partial } });
       }

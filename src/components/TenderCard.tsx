@@ -15,6 +15,7 @@ export type TenderCardData = {
   category_ids?: number[];
   bid_bond?: string | null;
   published_date?: string | null;
+  published_on?: string | null; // source publication date string, e.g. "Jul 16, 2026"
 };
 
 export function TenderCard({
@@ -58,11 +59,21 @@ export function TenderCard({
         </span>
       ) : null}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted">
-        <span>
-          Deadline:{" "}
-          <span className="font-medium text-ink">
-            {formatDate(tender.deadline)}
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span>
+            Deadline:{" "}
+            <span className="font-medium text-ink">
+              {formatDate(tender.deadline)}
+            </span>
           </span>
+          {(tender.published_on || tender.published_date) && (
+            <span>
+              Published on:{" "}
+              <span className="font-medium text-ink">
+                {tender.published_on ?? formatDate(tender.published_date!)}
+              </span>
+            </span>
+          )}
         </span>
         <span>Source: {tender.source_name}</span>
       </div>

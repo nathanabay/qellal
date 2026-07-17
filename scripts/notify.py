@@ -17,11 +17,13 @@ Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, APP_URL,
      TELEGRAM_BOT_TOKEN, DRY_RUN
 """
 import os
+import re
 import sys
 import ssl
 import json
 import smtplib
 import datetime
+import functools
 import urllib.request
 import urllib.parse
 from email.message import EmailMessage
@@ -32,6 +34,62 @@ APP_URL = os.environ.get("APP_URL", "http://localhost:3000").rstrip("/")
 DRY = os.environ.get("DRY_RUN") == "1"
 
 REMINDER_DAYS = {7: "reminder_7", 3: "reminder_3", 1: "reminder_1"}
+
+# Sector synonym clusters — a keyword also matches any sibling term in a cluster
+# it belongs to, so "IT support" catches "service desk" and "construction"
+# catches "civil works" (report §2.5: exact-keyword alerts miss real matches).
+# Deliberately domain-specific; generic verbs like "supply" are left out so we
+# widen recall without flooding.
+SYNONYM_CLUSTERS = [
+    {"it", "ict", "information technology", "software", "computer",
+     "it support", "help desk", "service desk", "networking"},
+    {"construction", "building", "civil works", "contractor", "renovation",
+     "road", "bridge", "infrastructure"},
+    {"vehicle", "car", "truck", "automobile", "fleet", "spare parts"},
+    {"medical", "medicine", "pharmaceutical", "drugs", "hospital",
+     "clinical", "laboratory", "diagnostic"},
+    {"consultancy", "consulting", "consultant", "advisory",
+     "technical assistance", "feasibility study"},
+    {"security", "guard", "surveillance", "cctv"},
+    {"furniture", "office equipment", "stationery"},
+    {"training", "capacity building", "workshop", "seminar"},
+    {"cleaning", "sanitation", "janitorial", "hygiene"},
+    {"electrical", "electricity", "power", "generator", "solar"},
+    {"water", "borehole", "irrigation", "wash", "plumbing"},
+    {"catering", "food", "nutrition"},
+    {"transport", "logistics", "freight", "shipping", "courier"},
+    {"printing", "publishing", "graphic design"},
+    {"insurance", "audit", "accounting", "financial services"},
+]
+
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _expand(keyword):
+    """The keyword plus every term in any cluster it (or a word of it) belongs to."""
+    kw = keyword.lower().strip()
+    words = set(kw.split())
+    terms = {kw}
+    for cluster in SYNONYM_CLUSTERS:
+        if kw in cluster or words & cluster:
+            terms |= cluster
+    return terms
+
+
+@functools.lru_cache(maxsize=512)
+def _pattern_for(keyword):
+    # Longest-first, word-boundary alternation so short terms ("it", "car")
+    # don't match inside larger words ("unit", "scar").
+    terms = sorted(_expand(keyword), key=len, reverse=True)
+    return re.compile(r"\b(" + "|".join(re.escape(t) for t in terms) + r")\b", re.I)
+
+
+def keyword_matches(keyword, tender):
+    """True if the keyword (or a synonym) appears in the title, buyer, or body."""
+    title = tender.get("title") or ""
+    entity = tender.get("publishing_entity") or ""
+    desc = _TAG_RE.sub(" ", tender.get("description") or "")
+    return bool(_pattern_for(keyword).search(f"{title} {entity} {desc}"))
 
 
 def rest(path, method="GET", params=None, body=None):
@@ -56,7 +114,7 @@ def matches(sub, tender):
         return False
     if sub.get("region") and sub["region"] != tender.get("region"):
         return False
-    if sub.get("keyword") and sub["keyword"].lower() not in (tender.get("title") or "").lower():
+    if sub.get("keyword") and not keyword_matches(sub["keyword"], tender):
         return False
     # Must have at least one real criterion (enforced at creation; guard anyway).
     return any([sub.get("category_id"), sub.get("region"), sub.get("keyword")])
@@ -154,14 +212,14 @@ def main():
 
     profiles = rest("profiles", params={
         "select": "id,email,email_notifications,telegram_notifications,"
-                  "telegram_chat_id,digest_mode,deadline_reminders,"
+                  "telegram_chat_id,digest_mode,digest_frequency,deadline_reminders,"
                   "notifications_paused_until",
     })
     subs_all = rest("subscriptions", params={
         "select": "id,user_id,category_id,keyword,region",
     })
     tenders = rest("tenders", params={
-        "select": "id,title,category_id,region,deadline,source_name,published_at",
+        "select": "id,title,description,publishing_entity,category_id,region,deadline,source_name,published_at",
         "status": "eq.published",
     })
     saved = rest("saved_tenders", params={"select": "user_id,tender_id"})
@@ -223,9 +281,14 @@ def main():
                     if (p["id"], t["id"], ch, kind) not in sent_set:
                         plan.append((p, ch, kind, [t]))
 
-        # Digest: newly published (last 24h) matching items, grouped into one message.
-        if matched and p.get("digest_mode", True):
-            cutoff = now - datetime.timedelta(hours=24)
+        # Digest: newly published matching items, grouped into one message.
+        # Cadence per user: 'daily' (24h window, every run) or 'weekly' (7-day
+        # window, sent only on Mondays). 'off' skips new-tender alerts entirely.
+        freq = p.get("digest_frequency") or ("daily" if p.get("digest_mode", True) else "off")
+        window_hours = 24 if freq == "daily" else 24 * 7 if freq == "weekly" else 0
+        weekly_due = freq != "weekly" or today.weekday() == 0  # Monday == 0
+        if matched and window_hours and weekly_due:
+            cutoff = now - datetime.timedelta(hours=window_hours)
             fresh_all = []
             for t in matched:
                 pa = t.get("published_at")

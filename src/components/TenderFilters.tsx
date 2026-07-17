@@ -7,7 +7,6 @@ export type Sort = "deadline" | "recent";
 
 export type FilterState = {
   q: string;
-  scope: Scope; // open = deadline not passed; closed = passed; all = everything
   category: string; // category slug
   region: string;
   deadline: string; // "" | "7" | "30"
@@ -17,12 +16,6 @@ export type FilterState = {
 
 const selectClass =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink";
-
-const SCOPES: { value: Scope; label: string }[] = [
-  { value: "open", label: "Open" },
-  { value: "closed", label: "Closed" },
-  { value: "all", label: "All" },
-];
 
 function withCount(label: string, n: number | undefined) {
   return n === undefined ? label : `${label} (${n})`;
@@ -44,7 +37,7 @@ export function TenderFilters({
   regions: string[];
   categoryCounts: Record<string, number>;
   regionCounts: Record<string, number>;
-  scopeTotal: number;
+  scopeTotal?: number;
 }) {
   return (
     <div className="mb-4 rounded-xl border border-border bg-surface p-3">
@@ -57,29 +50,6 @@ export function TenderFilters({
         aria-label="Search tenders by title"
         className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
       />
-
-      {/* Scope toggle (Active vs archive) — the most decision-driving control. */}
-      <div
-        role="group"
-        aria-label="Tender status"
-        className="mt-3 inline-flex rounded-lg border border-border p-0.5"
-      >
-        {SCOPES.map((s) => (
-          <button
-            key={s.value}
-            type="button"
-            aria-pressed={value.scope === s.value}
-            onClick={() => onChange({ scope: s.value })}
-            className={`min-h-9 rounded-md px-3 text-sm font-medium transition-colors ${
-              value.scope === s.value
-                ? "bg-ink text-canvas"
-                : "text-ink hover:bg-canvas"
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <select

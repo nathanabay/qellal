@@ -12,6 +12,7 @@ import { entityHref } from "@/lib/entity";
 import { createClient } from "@/lib/supabase/server";
 import { toggleSaveTender } from "@/app/tenders/actions";
 import { TenderCard } from "@/components/TenderCard";
+import { TenderActions } from "@/components/TenderActions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { StarIcon } from "@/components/ui/icons";
 
@@ -97,7 +98,7 @@ export default async function TenderDetailPage({
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
       {/* Breadcrumb */}
-      <nav className="text-xs text-muted" aria-label="Breadcrumb">
+      <nav className="no-print text-xs text-muted" aria-label="Breadcrumb">
         <Link href="/" className="hover:text-primary">
           Home
         </Link>{" "}
@@ -107,7 +108,7 @@ export default async function TenderDetailPage({
         </Link>
       </nav>
 
-      <div className="mt-5 lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
+      <div className="tender-detail-grid mt-5 lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
         {/* Main column */}
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -140,6 +141,12 @@ export default async function TenderDetailPage({
               </Link>
             </p>
           )}
+
+          <TenderActions
+            title={tender.title}
+            facts={facts}
+            sourceUrl={tender.source_url}
+          />
 
           {/* Description */}
           <section className="mt-8">
@@ -190,7 +197,7 @@ export default async function TenderDetailPage({
 
           {/* Similar past tenders (market intelligence) */}
           {similar.length > 0 && (
-            <section className="mt-8">
+            <section className="no-print mt-8">
               <h2 className="font-heading text-lg font-semibold text-ink">
                 Similar tenders
               </h2>
@@ -204,7 +211,7 @@ export default async function TenderDetailPage({
             </section>
           )}
 
-          <div className="mt-8">
+          <div className="no-print mt-8">
             <Link
               href="/tenders"
               className="text-sm font-medium text-primary hover:text-primary-hover"
@@ -217,7 +224,7 @@ export default async function TenderDetailPage({
         {/* Sticky ink deadline hero — the countdown is the loudest element. */}
         <aside className="mt-8 lg:mt-0">
           <div className="lg:sticky lg:top-6">
-            <div className="rounded-2xl bg-ink p-6 text-canvas shadow-[var(--shadow-lift)]">
+            <div className="tender-deadline-card rounded-2xl bg-ink p-6 text-canvas shadow-[var(--shadow-lift)]">
               <p className="font-mono text-xs uppercase tracking-widest text-canvas/60">
                 {closed ? "Closed" : "Closes in"}
               </p>
@@ -233,7 +240,7 @@ export default async function TenderDetailPage({
                   : `${d === 1 ? "day" : "days"} · closes ${formatDate(tender.deadline)}`}
               </p>
 
-              <div className="mt-6">
+              <div className="no-print mt-6">
                 {user ? (
                   <form action={toggleSaveTender}>
                     <input type="hidden" name="tender_id" value={tender.id} />

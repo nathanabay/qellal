@@ -11,6 +11,7 @@ export type Profile = {
   email_notifications: boolean;
   telegram_notifications: boolean;
   digest_mode: boolean;
+  digest_frequency: "off" | "daily" | "weekly";
   deadline_reminders: boolean;
   notifications_paused_until: string | null;
   telegram_chat_id: string | null;
@@ -34,7 +35,7 @@ export async function getProfile(): Promise<Profile | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id,full_name,company_name,email_notifications,telegram_notifications,digest_mode,deadline_reminders,notifications_paused_until,telegram_chat_id,telegram_link_token",
+      "id,full_name,company_name,email_notifications,telegram_notifications,digest_mode,digest_frequency,deadline_reminders,notifications_paused_until,telegram_chat_id,telegram_link_token",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -52,6 +53,8 @@ export async function getProfile(): Promise<Profile | null> {
     email_notifications: data.email_notifications ?? true,
     telegram_notifications: data.telegram_notifications ?? false,
     digest_mode: data.digest_mode ?? true,
+    digest_frequency:
+      (data.digest_frequency as "off" | "daily" | "weekly") ?? "daily",
     deadline_reminders: data.deadline_reminders ?? true,
     notifications_paused_until: data.notifications_paused_until,
     telegram_chat_id: data.telegram_chat_id,

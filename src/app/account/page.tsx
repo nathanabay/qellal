@@ -245,14 +245,20 @@ export default async function AccountPage({
             Deadline reminders
             <span className="text-xs text-muted">(7, 3 &amp; 1 days before)</span>
           </label>
-          <label className="flex items-center gap-3 text-sm text-ink">
-            <input
-              type="checkbox"
-              name="digest_mode"
-              defaultChecked={profile?.digest_mode}
-              className="h-4 w-4"
-            />
-            Daily digest (one email a day, instead of one per tender)
+          <label className="flex flex-wrap items-center gap-3 text-sm text-ink">
+            New-tender alerts
+            <select
+              name="digest_frequency"
+              defaultValue={profile?.digest_frequency ?? "daily"}
+              className="rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-ink"
+            >
+              <option value="daily">Daily digest</option>
+              <option value="weekly">Weekly digest (Mondays)</option>
+              <option value="off">Off</option>
+            </select>
+            <span className="text-xs text-muted">
+              (matches from your watched tenders, grouped into one email)
+            </span>
           </label>
           <label className="flex items-center gap-3 text-sm text-ink">
             <input

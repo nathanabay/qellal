@@ -49,6 +49,7 @@ export function SiteFooter() {
             title="Product"
             links={[
               { label: "Browse tenders", href: "/tenders" },
+              { label: "Pricing", href: "/pricing" },
               { label: "Create free account", href: "/signup" },
               { label: "Sign in", href: "/login" },
             ]}

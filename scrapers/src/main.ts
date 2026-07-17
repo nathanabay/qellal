@@ -1,13 +1,19 @@
 import { scrape2merkato } from "./sources/2merkato";
-import { saveTenders, getExistingSourceUrls } from "./lib/upsert";
-import type { TenderInput } from "./lib/types";
+import {
+  saveTenders,
+  getExistingSourceUrls,
+  syncCategoryTaxonomy,
+} from "./lib/upsert";
+import type { TenderInput, TaxonomyRow } from "./lib/types";
 
 // A source scrapes and flushes batches via onBatch, returning the total flushed.
+// onTaxonomy (optional) receives the source's category tree to sync into the DB.
 type Scraper = (
   pages: number,
   existing: Set<string>,
   onBatch: (rows: TenderInput[]) => Promise<number>,
   startPage: number,
+  onTaxonomy?: (rows: TaxonomyRow[]) => Promise<void>,
 ) => Promise<number>;
 
 const SOURCES: Record<string, Scraper> = {
@@ -56,10 +62,18 @@ async function main() {
     return inserted;
   };
 
+  // Keep the category taxonomy (hierarchy + order) in sync with the source on
+  // every real run. Skipped in dry mode (no DB creds).
+  const onTaxonomy = dry
+    ? undefined
+    : async (rows: TaxonomyRow[]) => {
+        await syncCategoryTaxonomy(rows);
+      };
+
   console.log(
     `Scraping ${which} (pages=${pages}, startPage=${startPage}, dry=${dry})…`,
   );
-  const total = await fn(pages, existing, onBatch, startPage);
+  const total = await fn(pages, existing, onBatch, startPage, onTaxonomy);
 
   console.log(
     dry
