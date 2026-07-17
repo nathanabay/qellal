@@ -8,13 +8,11 @@ export function getMeili(): MeiliSearch {
   const host = process.env.MEILI_HOST;
   const apiKey = process.env.MEILI_ADMIN_KEY;
   if (!host || !apiKey) throw new Error("MEILI_HOST and MEILI_ADMIN_KEY required");
-  if (!client) {
-    // Interim self-signed cert: allow insecure TLS when MEILI_INSECURE_TLS=1.
-    if (process.env.MEILI_INSECURE_TLS === "1") {
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-    }
-    client = new MeiliSearch({ host, apiKey });
-  }
+  // TLS verification stays ON. For the interim self-signed cert (bare IP, no
+  // domain), trust Caddy's root CA via NODE_EXTRA_CA_CERTS in the environment —
+  // NOT by disabling verification (which would also weaken Supabase/Chapa TLS).
+  // Once a domain + public Let's Encrypt cert exist, no extra CA is needed.
+  if (!client) client = new MeiliSearch({ host, apiKey });
   return client;
 }
 
