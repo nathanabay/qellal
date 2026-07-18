@@ -3,13 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { BillingStatus } from "@/lib/billing";
 import { generateInvoice, prorate } from "@/lib/invoicing";
 import { PLANS } from "@/lib/plans";
 import { initializeTransaction } from "@/lib/chapa";
 
-// Test-mode subscription lifecycle state machine. No payments — in production
-// upgrade/activate would run AFTER a successful gateway charge (via webhook).
+// Subscription lifecycle (Chapa sandbox). Auth + ownership come from the user's
+// session; every billing WRITE goes through the service-role client because RLS
+// now makes billing tables read-only to end users (migration 0028) — a user must
+// never be able to write their own subscription/payment/invoice state directly.
+// Each write is still scoped to the authenticated user.id.
 
 const DAY = 86_400_000;
 const iso = (msFromNow = 0) => new Date(Date.now() + msFromNow).toISOString();
@@ -41,7 +45,8 @@ export async function startTrial() {
   // Trial only allowed with no live subscription.
   if (status && status !== "canceled") return revalidatePath("/account");
 
-  await supabase.from("billing_subscriptions").upsert({
+  const admin = createAdminClient();
+  await admin.from("billing_subscriptions").upsert({
     user_id: user.id,
     plan_id: "pro",
     status: "trialing",
@@ -52,52 +57,21 @@ export async function startTrial() {
     canceled_at: null,
     updated_at: iso(0),
   });
-  await supabase.from("profiles").update({ plan: "pro" }).eq("id", user.id);
+  await admin.from("profiles").update({ plan: "pro" }).eq("id", user.id);
   revalidatePath("/account");
 }
 
-export async function upgradeToPro() {
-  const { supabase, user } = await requireUser();
-  const periodStart = iso(0);
-  const periodEnd = iso(30 * DAY);
-  // Test mode: activate directly. Production: only after a successful payment.
-  await supabase.from("billing_subscriptions").upsert({
-    user_id: user.id,
-    plan_id: "pro",
-    status: "active",
-    trial_ends_at: null,
-    current_period_start: periodStart,
-    current_period_end: periodEnd,
-    cancel_at_period_end: false,
-    canceled_at: null,
-    updated_at: iso(0),
-  });
-  await supabase.from("profiles").update({ plan: "pro" }).eq("id", user.id);
-  await generateInvoice(supabase, user.id, {
-    status: "paid",
-    period_start: periodStart,
-    period_end: periodEnd,
-    lines: [
-      {
-        description: `${PLANS.pro.name} plan — 1 month`,
-        amount: PLANS.pro.priceEtbMonthly,
-      },
-    ],
-  });
-  revalidatePath("/account");
-}
-
-// Real (sandbox) checkout via Chapa. Falls back to test-mode activation if the
-// gateway isn't configured. On success, the return/webhook handler activates Pro.
+// Real (sandbox) checkout via Chapa. Activation happens only in the return /
+// webhook handler after Chapa confirms the payment — there is no test-mode
+// shortcut that grants Pro without paying.
 export async function checkoutPro() {
-  const { supabase, user } = await requireUser();
-  // Real payment path only — no test-mode shortcut. If the gateway isn't
-  // configured we error rather than silently granting Pro.
+  const { user } = await requireUser();
   if (!process.env.CHAPA_SECRET_KEY) redirect("/account?payment=error");
 
+  const admin = createAdminClient();
   const txRef = `qellal-${user.id.slice(0, 8)}-${globalThis.crypto.randomUUID().slice(0, 8)}`;
   const amount = PLANS.pro.priceEtbMonthly;
-  await supabase.from("payments").insert({
+  await admin.from("payments").insert({
     user_id: user.id,
     tx_ref: txRef,
     provider: "chapa",
@@ -131,7 +105,7 @@ export async function pausePlan() {
   const status = await currentStatus(supabase, user.id);
   if (status !== "active" && status !== "trialing")
     return revalidatePath("/account");
-  await supabase
+  await createAdminClient()
     .from("billing_subscriptions")
     .update({ status: "paused", updated_at: iso(0) })
     .eq("user_id", user.id);
@@ -142,7 +116,7 @@ export async function resumePlan() {
   const { supabase, user } = await requireUser();
   const status = await currentStatus(supabase, user.id);
   if (status !== "paused") return revalidatePath("/account");
-  await supabase
+  await createAdminClient()
     .from("billing_subscriptions")
     .update({ status: "active", updated_at: iso(0) })
     .eq("user_id", user.id);
@@ -158,8 +132,9 @@ export async function cancelPlan() {
     .maybeSingle();
   if (!sub || sub.status === "canceled") return revalidatePath("/account");
 
+  const admin = createAdminClient();
   // Test mode: revert to Free immediately. Production: cancel at period end.
-  await supabase
+  await admin
     .from("billing_subscriptions")
     .update({
       status: "canceled",
@@ -168,7 +143,7 @@ export async function cancelPlan() {
       updated_at: iso(0),
     })
     .eq("user_id", user.id);
-  await supabase.from("profiles").update({ plan: "free" }).eq("id", user.id);
+  await admin.from("profiles").update({ plan: "free" }).eq("id", user.id);
 
   // Proration credit for the unused days of a paid (active) period.
   if (
@@ -183,7 +158,7 @@ export async function cancelPlan() {
       new Date(sub.current_period_end),
     );
     if (credit > 0) {
-      await generateInvoice(supabase, user.id, {
+      await generateInvoice(admin, user.id, {
         status: "credit",
         period_start: sub.current_period_start,
         period_end: sub.current_period_end,

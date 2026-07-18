@@ -4,19 +4,9 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type DB = SupabaseClient<Database>;
 
-// Proration: the portion of `monthly` owed/credited for the time between
-// `changeDate` and `periodEnd`, relative to the full period. Pure + testable.
-export function prorate(
-  monthly: number,
-  changeDate: Date,
-  periodStart: Date,
-  periodEnd: Date,
-): number {
-  const total = periodEnd.getTime() - periodStart.getTime();
-  const remaining = Math.max(0, periodEnd.getTime() - changeDate.getTime());
-  if (total <= 0) return 0;
-  return Math.round(monthly * (remaining / total) * 100) / 100;
-}
+// Proration math lives in a pure, server-free module; re-exported here for the
+// existing callers that import it from invoicing.
+export { prorate } from "@/lib/billing-math";
 
 export type InvoiceLineInput = { description: string; amount: number };
 
@@ -34,23 +24,39 @@ export async function generateInvoice(
     Math.round(opts.lines.reduce((s, l) => s + l.amount, 0) * 100) / 100;
   const status = opts.status ?? "open";
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const number = `INV-${stamp}-${globalThis.crypto.randomUUID().slice(0, 4).toUpperCase()}`;
+  // 8 hex chars of randomness; `invoices.number` is UNIQUE (0029), so retry on
+  // the rare collision instead of silently creating a duplicate number.
+  const makeNumber = () =>
+    `INV-${stamp}-${globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 
-  const { data: inv, error } = await supabase
-    .from("invoices")
-    .insert({
-      user_id: userId,
-      number,
-      status,
-      total,
-      period_start: opts.period_start ?? null,
-      period_end: opts.period_end ?? null,
-      paid_at: status === "paid" ? new Date().toISOString() : null,
-    })
-    .select("id")
-    .single();
-  if (error || !inv) {
-    console.error("generateInvoice failed:", error?.message);
+  let inv: { id: string } | null = null;
+  for (let attempt = 0; attempt < 4 && !inv; attempt++) {
+    const { data, error } = await supabase
+      .from("invoices")
+      .insert({
+        user_id: userId,
+        number: makeNumber(),
+        status,
+        total,
+        period_start: opts.period_start ?? null,
+        period_end: opts.period_end ?? null,
+        paid_at: status === "paid" ? new Date().toISOString() : null,
+      })
+      .select("id")
+      .single();
+    if (!error && data) {
+      inv = data;
+      break;
+    }
+    if (error && error.code !== "23505") {
+      // Not a unique-number collision — a real failure; stop.
+      console.error("generateInvoice failed:", error.message);
+      return;
+    }
+    // else: number collided (23505) — loop and try a fresh number.
+  }
+  if (!inv) {
+    console.error("generateInvoice failed: could not allocate a unique number");
     return;
   }
   const { error: le } = await supabase

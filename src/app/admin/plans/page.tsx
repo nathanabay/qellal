@@ -82,9 +82,10 @@ export default async function AdminPlansPage() {
       </section>
 
       <p className="mt-3 text-xs text-muted">
-        Prices are display-only. No payment processing is connected yet — plans
-        are set manually on the Users page until a gateway (Chapa/Telebirr) is
-        integrated.
+        This catalog is read-only. Checkout runs through Chapa (sandbox); an admin
+        can also set a user&apos;s plan on the Users page, which updates their
+        billing subscription. Entitlement limits are enforced once the free period
+        ends.
       </p>
 
       {/* Roles reference */}
