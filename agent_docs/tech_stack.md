@@ -4,7 +4,7 @@
 - **Frontend:** Next.js (App Router) + TypeScript
 - **Styling:** Tailwind CSS (utility classes; design tokens in `tailwind.config`)
 - **Backend/DB/Auth:** Supabase — PostgreSQL, Auth, Row Level Security. Region: **EU (Frankfurt)** (closest to Ethiopia)
-- **Scrapers:** Python 3.11+, `requests`, `beautifulsoup4` — live in `/scrapers`, run via GitHub Actions cron every 4–6 hours
+- **Scrapers:** TypeScript / Node (`scrapers/src`), run via GitHub Actions cron (`.github/workflows/scrape.yml`). (Originally planned as Python + BeautifulSoup; shipped as TS to share types/utils with the app.)
 - **Notifications:** Telegram Bot API (primary) + email over SMTP (any provider; digest default). Sent by `scripts/notify.py` — stdlib only, no Resend/Brevo SDK
 - **Hosting:** Vercel free tier (Git push = deploy)
 - **Scheduling:** GitHub Actions cron (scrapers + the daily notification matcher, `.github/workflows/notify.yml`)
@@ -18,9 +18,9 @@ npm run dev        # develop
 npm run lint       # check
 npm run build      # verify before commit
 
-# Scrapers
-cd scrapers && python -m venv .venv && source .venv/bin/activate
-pip install requests beautifulsoup4 python-dotenv
+# Scrapers (TypeScript / Node)
+cd scrapers && npm install
+npm run scrape:2merkato   # see scrapers/package.json for scripts
 ```
 
 ## Environment Variables (`.env.local` — NEVER commit)
@@ -42,7 +42,15 @@ SMTP_PASS=
 SMTP_FROM=                          # defaults to SMTP_USER if unset
 ```
 
-## Database Schema (create via Supabase dashboard or SQL editor)
+## Database Schema
+
+> ⚠️ **Source of truth is `supabase/migrations/` (`0001`–`0026`), not this snippet.**
+> The block below is the original Phase-1 sketch and is now out of date — e.g.
+> `notifications_sent` dedups on `(user_id, tender_id, channel, kind)`; `profiles`
+> has `telegram_link_token`, `unsubscribe_token`, `digest_frequency`,
+> `deadline_reminders`, `notifications_paused_until`, `email`; `tenders` has
+> `published_at`, `posted_at`, `published_on`. Read the migrations before relying on it.
+
 ```sql
 create table categories (
   id serial primary key,
@@ -156,5 +164,5 @@ if (error) {
 ## Naming Conventions
 - Components: `PascalCase.tsx` · hooks: `useThing.ts` · utils: `camelCase.ts`
 - DB: `snake_case` tables/columns · Routes: kebab-case URLs
-- Python scrapers: `scrape_<source>.py`, one source per file
+- Scrapers (TypeScript): one source per file under `scrapers/src/sources/` (e.g. `2merkato.ts`)
 - Booleans read as questions: `digest_mode`, `email_notifications`

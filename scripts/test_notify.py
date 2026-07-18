@@ -115,6 +115,13 @@ class Compose(unittest.TestCase):
         self.assertIsNone(notify.unsubscribe_url({"unsubscribe_token": None}))
         self.assertTrue(notify.unsubscribe_url({"unsubscribe_token": "tok"}).endswith("token=tok"))
 
+    def test_html_has_link_and_escapes_title(self):
+        html = notify.compose_html(
+            "digest", [tender(id="t9", title="Roads & Bridges <b>")], "https://x/api/unsubscribe?token=z")
+        self.assertIn("/tenders/t9", html)
+        self.assertIn("Roads &amp; Bridges &lt;b&gt;", html)  # escaped, not raw markup
+        self.assertIn("Unsubscribe", html)
+
 
 class FakeStore:
     """In-memory stand-in for the Supabase REST tables notify.main() reads."""
@@ -131,6 +138,13 @@ class FakeStore:
         if method == "POST":
             self.tables.setdefault(path, []).append(dict(body))
             return [dict(body)]
+        if method == "DELETE":
+            eqs = {k: v.split("eq.", 1)[1] for k, v in (params or {}).items()}
+            self.tables[path] = [
+                r for r in self.tables.get(path, [])
+                if not all(str(r.get(k)) == v for k, v in eqs.items())
+            ]
+            return []
         return []
 
 
@@ -140,7 +154,7 @@ class Idempotency(unittest.TestCase):
     def setUp(self):
         self._saved = {k: getattr(notify, k) for k in ("rest", "send_email", "send_telegram", "DRY")}
         self.sent = []
-        notify.send_email = lambda to, subj, body, unsub=None: self.sent.append(("email", to))
+        notify.send_email = lambda to, subj, body, html=None, unsub=None: self.sent.append(("email", to))
         notify.send_telegram = lambda chat, text: self.sent.append(("telegram", chat))
         notify.DRY = False
 
@@ -177,11 +191,59 @@ class Idempotency(unittest.TestCase):
         self.assertEqual(self.sent, [], "second run must send nothing (dedup)")
 
 
+class Rollback(unittest.TestCase):
+    """A failed send must roll back its claim so the message is retried, never lost."""
+
+    def setUp(self):
+        self._saved = {k: getattr(notify, k) for k in ("rest", "send_email", "send_telegram", "DRY")}
+        notify.send_telegram = lambda chat, text: None
+        notify.DRY = False
+
+    def tearDown(self):
+        for k, v in self._saved.items():
+            setattr(notify, k, v)
+
+    def _store(self):
+        recent = (datetime.datetime.now(datetime.timezone.utc)
+                  - datetime.timedelta(minutes=5)).isoformat()
+        return FakeStore(
+            profiles=[{
+                "id": "u1", "email": "u@example.com", "email_notifications": True,
+                "telegram_notifications": False, "telegram_chat_id": None,
+                "digest_mode": True, "digest_frequency": "daily",
+                "deadline_reminders": False, "notifications_paused_until": None,
+                "unsubscribe_token": "tok1",
+            }],
+            subscriptions=[sub(keyword="laptops")],
+            tenders=[tender(status="published", published_at=recent, deadline="2030-01-01")],
+            saved_tenders=[],
+            notifications_sent=[],
+        )
+
+    def test_failed_send_rolls_back_and_retries(self):
+        store = self._store()
+        notify.rest = store.rest
+
+        def boom(*a, **k):
+            raise RuntimeError("smtp down")
+
+        notify.send_email = boom
+        notify.main()  # send fails
+        self.assertEqual(store.tables["notifications_sent"], [],
+                         "claim must be rolled back when the send fails")
+
+        sent = []
+        notify.send_email = lambda to, subj, body, html=None, unsub=None: sent.append(to)
+        notify.main()  # retry succeeds
+        self.assertEqual(sent, ["u@example.com"])
+        self.assertEqual(len(store.tables["notifications_sent"]), 1, "claim persists once sent")
+
+
 class DigestWindow(unittest.TestCase):
     def setUp(self):
         self._saved = {k: getattr(notify, k) for k in ("rest", "send_email", "send_telegram", "DRY")}
         self.sent = []
-        notify.send_email = lambda to, subj, body, unsub=None: self.sent.append(("email", to))
+        notify.send_email = lambda to, subj, body, html=None, unsub=None: self.sent.append(("email", to))
         notify.send_telegram = lambda chat, text: self.sent.append(("telegram", chat))
         notify.DRY = False
 

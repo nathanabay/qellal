@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import ssl
+import html
 import json
 import smtplib
 import datetime
@@ -41,6 +42,14 @@ DRY = os.environ.get("DRY_RUN") == "1"
 # silently falling between the 7/3/1 marks. Per-stage dedup (notifications_sent)
 # stops repeats, so each stage is sent at most once.
 REMINDER_STAGES = [(1, "reminder_1"), (3, "reminder_3"), (7, "reminder_7")]
+
+# Human labels for each reminder stage. Worded to stay accurate for catch-up
+# sends too (e.g. reminder_7 also covers a tender first seen at 5 days out).
+REMINDER_LABELS = {
+    "reminder_7": "closing soon",
+    "reminder_3": "closing in a few days",
+    "reminder_1": "closes tomorrow",
+}
 
 
 def reminder_kind(days_left):
@@ -193,25 +202,49 @@ def user_matches(subs, tender):
     return any(matches(s, tender) for s in subs)
 
 
+def _subject(kind, items):
+    if kind.startswith("reminder"):
+        return f"Tender {REMINDER_LABELS.get(kind, 'closing soon')}: {items[0]['title'][:60]}"
+    n = len(items)
+    return f"{n} new Ethiopian tender{'s' if n != 1 else ''} match your alerts"
+
+
 def compose(kind, items, unsub_url=None):
-    labels = {
-        "reminder_7": "closing soon",
-        "reminder_3": "closing in a few days",
-        "reminder_1": "closes tomorrow",
-    }
+    """Plain-text subject + body (used for Telegram and as the email text part)."""
     lines = [
         f"- {t['title']} - deadline {t['deadline']}\n  {APP_URL}/tenders/{t['id']}"
         for t in items
     ]
-    if kind.startswith("reminder"):
-        subject = f"Tender {labels.get(kind, 'closing soon')}: {items[0]['title'][:60]}"
-    else:
-        n = len(items)
-        subject = f"{n} new Ethiopian tender{'s' if n != 1 else ''} match your alerts"
     body = "\n".join(lines) + f"\n\nManage your alerts: {APP_URL}/account"
     if unsub_url:
         body += f"\nUnsubscribe from emails: {unsub_url}"
-    return subject, body
+    return _subject(kind, items), body
+
+
+def compose_html(kind, items, unsub_url=None):
+    """HTML alternative part for email — table + inline styles so it renders in
+    mail clients and reads as a real message (better deliverability than text-only)."""
+    heading = html.escape(_subject(kind, items))
+    rows = "".join(
+        '<tr><td style="padding:10px 0;border-bottom:1px solid #eee">'
+        f'<a href="{APP_URL}/tenders/{t["id"]}" '
+        'style="color:#1a56db;text-decoration:none;font-weight:600;font-size:15px">'
+        f'{html.escape(t["title"])}</a>'
+        f'<div style="color:#555;font-size:13px;margin-top:2px">Deadline: {html.escape(str(t["deadline"]))}</div>'
+        "</td></tr>"
+        for t in items
+    )
+    footer = f'<a href="{APP_URL}/account" style="color:#888;text-decoration:underline">Manage your alerts</a>'
+    if unsub_url:
+        footer += f' &middot; <a href="{html.escape(unsub_url)}" style="color:#888;text-decoration:underline">Unsubscribe</a>'
+    return (
+        '<div style="font-family:system-ui,-apple-system,Arial,sans-serif;'
+        'max-width:560px;margin:0 auto;padding:16px;color:#111">'
+        f'<h1 style="font-size:18px;margin:0 0 12px">{heading}</h1>'
+        f'<table style="width:100%;border-collapse:collapse">{rows}</table>'
+        f'<p style="font-size:12px;color:#888;margin-top:24px">{footer}</p>'
+        "</div>"
+    )
 
 
 def unsubscribe_url(profile):
@@ -220,7 +253,7 @@ def unsubscribe_url(profile):
     return f"{APP_URL}/api/unsubscribe?token={token}" if token else None
 
 
-def send_email(to, subject, body, unsub_url=None):
+def send_email(to, subject, body, html_body=None, unsub_url=None):
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = os.environ.get("SMTP_FROM", os.environ["SMTP_USER"])
@@ -230,7 +263,9 @@ def send_email(to, subject, body, unsub_url=None):
     if unsub_url:
         msg["List-Unsubscribe"] = f"<{unsub_url}>"
         msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-    msg.set_content(body)
+    msg.set_content(body)  # text/plain part (fallback)
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")  # multipart/alternative
     ctx = ssl.create_default_context()
     with smtplib.SMTP_SSL(
         os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT", "465")),
@@ -264,7 +299,8 @@ def deliver(profile, channel, kind, items):
         return True
     try:
         if channel == "email":
-            send_email(profile["email"], subject, body, unsub_url)
+            html_body = compose_html(kind, items, unsub_url)
+            send_email(profile["email"], subject, body, html_body, unsub_url)
         else:
             send_telegram(profile["telegram_chat_id"], f"{subject}\n\n{body}")
         return True
@@ -273,16 +309,36 @@ def deliver(profile, channel, kind, items):
         return False
 
 
-def record(user_id, tender_id, channel, kind):
+def claim(user_id, tender_id, channel, kind):
+    """Reserve a send by inserting its notifications_sent row BEFORE sending
+    (code_patterns.md: "insert before counting success"). Returns False if the
+    insert fails: the unique constraint makes an already-sent row impossible to
+    re-claim (so we never double-send), and a transient failure simply defers the
+    send to the next run. The row is rolled back by unclaim() if the send fails."""
     if DRY:
-        return
+        return True
     try:
         rest("notifications_sent", method="POST", body={
             "user_id": user_id, "tender_id": tender_id,
             "channel": channel, "kind": kind,
         })
+        return True
     except Exception as e:  # noqa: BLE001
-        print(f"  ! record failed: {e}", file=sys.stderr)
+        print(f"  ! claim failed [{channel}] {kind}: {e}", file=sys.stderr)
+        return False
+
+
+def unclaim(user_id, tender_id, channel, kind):
+    """Roll back a claim() after a failed send so the message retries next run."""
+    if DRY:
+        return
+    try:
+        rest("notifications_sent", method="DELETE", params={
+            "user_id": f"eq.{user_id}", "tender_id": f"eq.{tender_id}",
+            "channel": f"eq.{channel}", "kind": f"eq.{kind}",
+        })
+    except Exception as e:  # noqa: BLE001
+        print(f"  ! rollback failed [{channel}] {kind}: {e}", file=sys.stderr)
 
 
 def _parse_ts(value):
@@ -388,9 +444,15 @@ def main():
                     plan.append((p, ch, "digest", fresh))
 
     for p, ch, kind, items in plan:
-        if deliver(p, ch, kind, items):
-            for t in items:
-                record(p["id"], t["id"], ch, kind)
+        # Claim each item (record it) BEFORE sending; if the send fails, roll the
+        # claims back so nothing is lost. This makes a double-send impossible (the
+        # unique constraint rejects a re-claim) without dropping messages.
+        claimed = [t for t in items if claim(p["id"], t["id"], ch, kind)]
+        if not claimed:
+            continue
+        if not deliver(p, ch, kind, claimed):
+            for t in claimed:
+                unclaim(p["id"], t["id"], ch, kind)
 
     verb = "DRY-RUN: would send" if DRY else "Sent"
     print(f"{verb} {len(plan)} message(s) across {len(profiles)} profile(s).")
