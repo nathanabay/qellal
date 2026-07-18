@@ -5,9 +5,9 @@
 - **Styling:** Tailwind CSS (utility classes; design tokens in `tailwind.config`)
 - **Backend/DB/Auth:** Supabase — PostgreSQL, Auth, Row Level Security. Region: **EU (Frankfurt)** (closest to Ethiopia)
 - **Scrapers:** Python 3.11+, `requests`, `beautifulsoup4` — live in `/scrapers`, run via GitHub Actions cron every 4–6 hours
-- **Notifications:** Telegram Bot API (primary), Resend or Brevo for email (digest default)
+- **Notifications:** Telegram Bot API (primary) + email over SMTP (any provider; digest default). Sent by `scripts/notify.py` — stdlib only, no Resend/Brevo SDK
 - **Hosting:** Vercel free tier (Git push = deploy)
-- **Scheduling:** GitHub Actions cron (scrapers + hourly notification matcher)
+- **Scheduling:** GitHub Actions cron (scrapers + the daily notification matcher, `.github/workflows/notify.yml`)
 
 ## Setup Commands
 ```bash
@@ -24,12 +24,22 @@ pip install requests beautifulsoup4 python-dotenv
 ```
 
 ## Environment Variables (`.env.local` — NEVER commit)
+See `.env.example` for the full, authoritative list. Notification-relevant keys:
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=   # server/scrapers only — never expose to browser
+SUPABASE_SERVICE_ROLE_KEY=          # server/scrapers only — never expose to browser
+APP_URL=                            # absolute app URL for links in notifications
+# Telegram
 TELEGRAM_BOT_TOKEN=
-RESEND_API_KEY=              # or BREVO_API_KEY
+TELEGRAM_WEBHOOK_SECRET=            # verifies inbound webhook requests
+NEXT_PUBLIC_TELEGRAM_BOT_USERNAME= # powers the "Connect Telegram" link
+# Email over SMTP (no Resend/Brevo SDK — any SMTP provider)
+SMTP_HOST=
+SMTP_PORT=465
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=                          # defaults to SMTP_USER if unset
 ```
 
 ## Database Schema (create via Supabase dashboard or SQL editor)

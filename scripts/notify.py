@@ -24,6 +24,7 @@ import json
 import smtplib
 import datetime
 import functools
+import urllib.error
 import urllib.request
 import urllib.parse
 from email.message import EmailMessage
@@ -33,7 +34,30 @@ SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 APP_URL = os.environ.get("APP_URL", "http://localhost:3000").rstrip("/")
 DRY = os.environ.get("DRY_RUN") == "1"
 
-REMINDER_DAYS = {7: "reminder_7", 3: "reminder_3", 1: "reminder_1"}
+# Reminder stages, most-urgent first. A tender that is `days_left` days from its
+# deadline maps to the tightest stage it has reached (days_left <= threshold), NOT
+# an exact-day hit. This keeps reminders catch-up-safe: a skipped cron run or a
+# tender scraped only a few days before its deadline still gets nudged instead of
+# silently falling between the 7/3/1 marks. Per-stage dedup (notifications_sent)
+# stops repeats, so each stage is sent at most once.
+REMINDER_STAGES = [(1, "reminder_1"), (3, "reminder_3"), (7, "reminder_7")]
+
+
+def reminder_kind(days_left):
+    """The reminder stage due `days_left` days before the deadline, or None.
+
+    Only fires while days_left >= 1 (deadline day / past is left to the digest and
+    listings), which also keeps the stage labels accurate:
+      1 day  -> reminder_1 ("closes tomorrow")
+      2-3    -> reminder_3
+      4-7    -> reminder_7
+    """
+    if days_left < 1:
+        return None
+    for threshold, kind in REMINDER_STAGES:
+        if days_left <= threshold:
+            return kind
+    return None
 
 # Sector synonym clusters — a keyword also matches any sibling term in a cluster
 # it belongs to, so "IT support" catches "service desk" and "construction"
@@ -92,20 +116,64 @@ def keyword_matches(keyword, tender):
     return bool(_pattern_for(keyword).search(f"{title} {entity} {desc}"))
 
 
-def rest(path, method="GET", params=None, body=None):
-    url = f"{SUPABASE_URL}/rest/v1/{path}"
-    if params:
-        url += "?" + urllib.parse.urlencode(params)
-    data = json.dumps(body).encode() if body is not None else None
+PAGE_SIZE = 1000  # PostgREST returns at most this many rows per request by default
+
+
+def _req(url, method, data=None, headers=None):
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("apikey", SERVICE_KEY)
     req.add_header("Authorization", f"Bearer {SERVICE_KEY}")
     req.add_header("Content-Type", "application/json")
-    if method in ("POST", "PATCH"):
-        req.add_header("Prefer", "return=representation")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        txt = r.read().decode()
-        return json.loads(txt) if txt else []
+    for k, v in (headers or {}).items():
+        req.add_header(k, v)
+    return req
+
+
+def _range_total(content_range):
+    """Total row count from a PostgREST Content-Range (e.g. 'items 0-999/2456')."""
+    if not content_range or "/" not in content_range:
+        return None
+    total = content_range.rsplit("/", 1)[1].strip()
+    return int(total) if total.isdigit() else None
+
+
+def rest(path, method="GET", params=None, body=None):
+    url = f"{SUPABASE_URL}/rest/v1/{path}"
+    if params:
+        url += "?" + urllib.parse.urlencode(params)
+
+    if method != "GET":
+        data = json.dumps(body).encode() if body is not None else None
+        headers = {"Prefer": "return=representation"} if method in ("POST", "PATCH") else None
+        with urllib.request.urlopen(_req(url, method, data, headers), timeout=30) as r:
+            txt = r.read().decode()
+            return json.loads(txt) if txt else []
+
+    # GET: page through the whole result set. PostgREST caps a single response at
+    # a max-rows limit, so reading a table in one shot silently truncates once it
+    # grows past that cap — and a truncated notifications_sent read would break
+    # dedup and double-send. Advance by the rows actually returned (not by
+    # PAGE_SIZE) so this is correct whatever the server's real cap is.
+    rows = []
+    offset = 0
+    for _ in range(10_000):  # safety bound against a misbehaving server
+        headers = {"Range-Unit": "items", "Range": f"{offset}-{offset + PAGE_SIZE - 1}"}
+        try:
+            with urllib.request.urlopen(_req(url, "GET", None, headers), timeout=30) as r:
+                txt = r.read().decode()
+                page = json.loads(txt) if txt else []
+                total = _range_total(r.headers.get("Content-Range"))
+        except urllib.error.HTTPError as e:
+            if e.code == 416:  # requested range past the end — nothing left
+                break
+            raise
+        if not page:
+            break
+        rows.extend(page)
+        offset += len(page)
+        if total is not None and offset >= total:
+            break
+    return rows
 
 
 def matches(sub, tender):
@@ -125,10 +193,10 @@ def user_matches(subs, tender):
     return any(matches(s, tender) for s in subs)
 
 
-def compose(kind, items):
+def compose(kind, items, unsub_url=None):
     labels = {
-        "reminder_7": "closes in 7 days",
-        "reminder_3": "closes in 3 days",
+        "reminder_7": "closing soon",
+        "reminder_3": "closing in a few days",
         "reminder_1": "closes tomorrow",
     }
     lines = [
@@ -141,14 +209,27 @@ def compose(kind, items):
         n = len(items)
         subject = f"{n} new Ethiopian tender{'s' if n != 1 else ''} match your alerts"
     body = "\n".join(lines) + f"\n\nManage your alerts: {APP_URL}/account"
+    if unsub_url:
+        body += f"\nUnsubscribe from emails: {unsub_url}"
     return subject, body
 
 
-def send_email(to, subject, body):
+def unsubscribe_url(profile):
+    """One-click unsubscribe link for this user's email footer + header."""
+    token = profile.get("unsubscribe_token")
+    return f"{APP_URL}/api/unsubscribe?token={token}" if token else None
+
+
+def send_email(to, subject, body, unsub_url=None):
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = os.environ.get("SMTP_FROM", os.environ["SMTP_USER"])
     msg["To"] = to
+    # RFC 8058 one-click unsubscribe — required by Gmail/Yahoo bulk-sender rules
+    # and lets clients show a native "Unsubscribe" button.
+    if unsub_url:
+        msg["List-Unsubscribe"] = f"<{unsub_url}>"
+        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
     msg.set_content(body)
     ctx = ssl.create_default_context()
     with smtplib.SMTP_SSL(
@@ -174,14 +255,16 @@ def send_telegram(chat_id, text):
 
 
 def deliver(profile, channel, kind, items):
-    subject, body = compose(kind, items)
+    # Telegram has its own /stop unsubscribe; only email needs the footer/header.
+    unsub_url = unsubscribe_url(profile) if channel == "email" else None
+    subject, body = compose(kind, items, unsub_url)
     if DRY:
         who = profile.get("email") if channel == "email" else profile.get("telegram_chat_id")
         print(f"  -> [{channel}] {who} | {kind} | {subject} | {len(items)} tender(s)")
         return True
     try:
         if channel == "email":
-            send_email(profile["email"], subject, body)
+            send_email(profile["email"], subject, body, unsub_url)
         else:
             send_telegram(profile["telegram_chat_id"], f"{subject}\n\n{body}")
         return True
@@ -213,7 +296,7 @@ def main():
     profiles = rest("profiles", params={
         "select": "id,email,email_notifications,telegram_notifications,"
                   "telegram_chat_id,digest_mode,digest_frequency,deadline_reminders,"
-                  "notifications_paused_until",
+                  "notifications_paused_until,unsubscribe_token",
     })
     subs_all = rest("subscriptions", params={
         "select": "id,user_id,category_id,keyword,region",
@@ -274,7 +357,7 @@ def main():
                     days = (datetime.date.fromisoformat(t["deadline"]) - today).days
                 except Exception:  # noqa: BLE001
                     continue
-                kind = REMINDER_DAYS.get(days)
+                kind = reminder_kind(days)
                 if not kind:
                     continue
                 for ch in channels:
