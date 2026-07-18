@@ -80,7 +80,12 @@ export default async function TendersPage({
       total = r.total;
       facets = r.facets;
     } catch (e) {
-      console.error("meili search failed, falling back to postgres:", e);
+      const err = e as Error & { cause?: { code?: string } };
+      // Explicit, grep-able line in Vercel logs so the cause is obvious:
+      // AbortError=timeout, ENOTFOUND=DNS, ECONNREFUSED/ETIMEDOUT=network.
+      console.error(
+        `[meili] search failed → postgres fallback | name=${err?.name} code=${err?.cause?.code ?? ""} msg=${err?.message}`,
+      );
       errored = true;
     }
   }
