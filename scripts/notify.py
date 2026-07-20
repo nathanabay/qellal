@@ -203,14 +203,20 @@ def _get_smtp():
     return _smtp
 
 
-def send_email(to, subject, body):
+def send_email(to, subject, body, unsub_token=None):
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = os.environ.get("SMTP_FROM", os.environ["SMTP_USER"])
     msg["To"] = to
-    # Give mail clients an unsubscribe affordance (deliverability + fewer
-    # spam complaints); points at the account page where alerts are managed.
-    msg["List-Unsubscribe"] = f"<{APP_URL}/account>"
+    # One-click unsubscribe (RFC 8058) — mail clients show a native unsubscribe
+    # button and can POST to the endpoint directly. Falls back to the account
+    # page if the token is missing.
+    if unsub_token:
+        url = f"{APP_URL}/api/unsubscribe?token={unsub_token}"
+        msg["List-Unsubscribe"] = f"<{url}>, <{APP_URL}/account>"
+        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+    else:
+        msg["List-Unsubscribe"] = f"<{APP_URL}/account>"
     msg.set_content(body)
     try:
         _get_smtp().send_message(msg)
@@ -280,7 +286,7 @@ def deliver(profile, channel, kind, items):
         return "ok"
     try:
         if channel == "email":
-            send_email(profile["email"], subject, body)
+            send_email(profile["email"], subject, body, profile.get("telegram_link_token"))
             return "ok"
         status = send_telegram(profile["telegram_chat_id"], f"{subject}\n\n{body}")
         if status == "blocked":
@@ -311,7 +317,7 @@ def _parse_ts(value):
 
 PROFILE_COLS = (
     "id,email,email_notifications,telegram_notifications,telegram_chat_id,"
-    "digest_mode,deadline_reminders,notifications_paused_until"
+    "digest_mode,deadline_reminders,notifications_paused_until,telegram_link_token"
 )
 
 
