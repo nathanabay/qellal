@@ -20,9 +20,15 @@ async function reply(chatId: number, text: string) {
 }
 
 export async function POST(req: NextRequest) {
-  // Verify the request really came from Telegram (secret set at webhook registration).
+  // Verify the request really came from Telegram (secret set at webhook
+  // registration). Fail CLOSED: with no secret configured the endpoint would be
+  // fully unauthenticated, so a missing secret is a hard reject, not a skip —
+  // otherwise anyone could POST forged /stop updates for an enumerable chat_id.
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (secret && req.headers.get("x-telegram-bot-api-secret-token") !== secret) {
+  if (
+    !secret ||
+    req.headers.get("x-telegram-bot-api-secret-token") !== secret
+  ) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
@@ -48,6 +54,9 @@ export async function POST(req: NextRequest) {
         .update({
           telegram_chat_id: String(chatId),
           telegram_notifications: true,
+          // Rotate the one-tap link token so a leaked connect link can't be
+          // replayed to bind a different chat to this account.
+          telegram_link_token: globalThis.crypto.randomUUID(),
         })
         .eq("telegram_link_token", token)
         .select("id")

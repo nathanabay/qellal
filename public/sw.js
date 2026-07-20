@@ -2,7 +2,10 @@
 // Strategy: network-first for page navigations (online users always get fresh
 // content; offline falls back to the last-cached copy, then an offline page).
 // Static assets are cache-first. Auth/API are never cached.
-const CACHE = "qellal-v1";
+// Bump this on deploys that change caching behaviour — `activate` purges every
+// cache whose name isn't the current one, so a bump also clears any pages an
+// older SW may have cached (e.g. previously-cached personalized /account HTML).
+const CACHE = "qellal-v2";
 const OFFLINE_URL = "/offline";
 const PRECACHE = ["/", "/tenders", OFFLINE_URL];
 
@@ -32,8 +35,18 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  // Never cache auth or API responses.
-  if (url.pathname.startsWith("/api") || url.pathname.startsWith("/auth")) return;
+  // Never cache auth/API or PERSONALIZED pages. Caching /account or /admin would
+  // write a user's PII (email, invoices, telegram token) into Cache Storage,
+  // where it persists after logout and could be served to another user offline
+  // on a shared device. Let these fall through to the network (no respondWith).
+  if (
+    url.pathname.startsWith("/api") ||
+    url.pathname.startsWith("/auth") ||
+    url.pathname.startsWith("/account") ||
+    url.pathname.startsWith("/admin")
+  ) {
+    return;
+  }
 
   if (req.mode === "navigate") {
     event.respondWith(

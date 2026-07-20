@@ -128,6 +128,7 @@ export type Database = {
           user_id: string;
           plan_id: string;
           status: string;
+          trial_started_at: string | null;
           trial_ends_at: string | null;
           current_period_start: string | null;
           current_period_end: string | null;
@@ -142,6 +143,7 @@ export type Database = {
           user_id: string;
           plan_id?: string;
           status?: string;
+          trial_started_at?: string | null;
           trial_ends_at?: string | null;
           current_period_start?: string | null;
           current_period_end?: string | null;
@@ -156,6 +158,7 @@ export type Database = {
           user_id?: string;
           plan_id?: string;
           status?: string;
+          trial_started_at?: string | null;
           trial_ends_at?: string | null;
           current_period_start?: string | null;
           current_period_end?: string | null;
