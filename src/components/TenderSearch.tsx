@@ -56,6 +56,34 @@ export function TenderSearch({
     [],
   );
 
+  // Keep the controls in sync with the URL on back/forward navigation, using
+  // React's render-phase derived-state pattern (not an effect — that would
+  // cascade renders). Our own edits push URL==state, so this only re-seeds on
+  // an EXTERNAL navigation where the URL diverges from the current controls.
+  const urlKey = searchParams.toString();
+  const [syncedKey, setSyncedKey] = useState(urlKey);
+  if (urlKey !== syncedKey) {
+    setSyncedKey(urlKey);
+    const urlF: FilterState = {
+      q: searchParams.get("q") ?? "",
+      category: searchParams.get("category") ?? "",
+      region: searchParams.get("region") ?? "",
+      deadline: searchParams.get("deadline") ?? "",
+      bidBond: searchParams.get("bidBond") === "1",
+      sort: searchParams.get("sort") === "recent" ? "recent" : "deadline",
+    };
+    setF((prev) =>
+      prev.q === urlF.q &&
+      prev.category === urlF.category &&
+      prev.region === urlF.region &&
+      prev.deadline === urlF.deadline &&
+      prev.bidBond === urlF.bidBond &&
+      prev.sort === urlF.sort
+        ? prev
+        : urlF,
+    );
+  }
+
   // Filter/sort change → server refetch (page resets to 1), debounced so typing
   // in the search box doesn't fire a request per keystroke.
   const mounted = useRef(false);

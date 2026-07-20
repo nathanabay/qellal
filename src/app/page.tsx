@@ -206,7 +206,7 @@ export default async function Home() {
       <section className="bg-navy">
         <div className="mx-auto max-w-5xl px-4 py-16 text-center">
           <p className="font-mono text-xs uppercase tracking-widest text-canvas/60">
-            {openCount > 0 ? `${openCount} live` : "Live"} · Closing from 02 days
+            {openCount > 0 ? `${openCount} live tenders` : "Live tenders"} · Updated daily
           </p>
           <h2 className="mx-auto mt-3 max-w-2xl font-heading text-2xl font-bold text-canvas sm:text-3xl">
             Start tracking tenders in under a minute

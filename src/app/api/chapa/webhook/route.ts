@@ -50,12 +50,27 @@ export async function POST(req: NextRequest) {
   if (!txRef) return NextResponse.json({ ok: true });
 
   const verified = await verifyTransaction(txRef);
+  // Transient/config failure (network, upstream 5xx, missing key) → 500 so Chapa
+  // RETRIES rather than silently dropping a real payment. An authoritative
+  // "not paid" (error unset, success false) is final → 200, no retry.
+  if (verified.error) {
+    return NextResponse.json({ ok: false, retry: true }, { status: 500 });
+  }
   if (!verified.success) return NextResponse.json({ ok: true });
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return NextResponse.json({ ok: true, note: "service role not configured" });
+    // Misconfiguration, not a final state — let Chapa retry once it's fixed.
+    return NextResponse.json(
+      { ok: false, note: "service role not configured" },
+      { status: 500 },
+    );
   }
 
-  const result = await settlePayment(createAdminClient(), txRef, verified);
-  return NextResponse.json({ ok: true, result });
+  try {
+    const result = await settlePayment(createAdminClient(), txRef, verified);
+    return NextResponse.json({ ok: true, result });
+  } catch (e) {
+    console.error("settle payment failed:", e);
+    return NextResponse.json({ ok: false, retry: true }, { status: 500 });
+  }
 }

@@ -10,7 +10,7 @@ export function AuthBrandPanel() {
       </div>
       <div>
         <p className="font-mono text-xs uppercase tracking-widest text-canvas/60">
-          312 Live · Closing from 02 Days
+          Every Ethiopian tender · One place
         </p>
         <h2 className="mt-3 font-heading text-3xl font-bold leading-tight">
           Never miss a tender deadline again.

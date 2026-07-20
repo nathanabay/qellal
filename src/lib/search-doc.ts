@@ -1,7 +1,8 @@
 // App-side copy of the scraper's tender→Meilisearch mapper (scrapers/src/lib/
 // search-doc.ts). Duplicated by design — the two live in separate TS packages
 // and can't share a module; the daily reindex is the reconciler of record. Keep
-// the two byte-identical.
+// the mapping LOGIC identical across the two (formatting/comments may differ);
+// any change to toSearchDoc here must be mirrored there.
 export type SearchDoc = {
   id: string;
   title: string;

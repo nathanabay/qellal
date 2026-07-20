@@ -46,7 +46,7 @@ export function TenderCard({
         <span
           className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${badgeClass}`}
         >
-          {d <= 0 ? "Closed" : `${d}d left`}
+          {d < 0 ? "Closed" : d === 0 ? "Closes today" : `${d}d left`}
         </span>
       </div>
       <p className="mt-2 text-sm text-muted">

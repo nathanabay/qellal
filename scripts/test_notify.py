@@ -154,7 +154,7 @@ class Idempotency(unittest.TestCase):
     def setUp(self):
         self._saved = {k: getattr(notify, k) for k in ("rest", "send_email", "send_telegram", "DRY")}
         self.sent = []
-        notify.send_email = lambda to, subj, body, html=None, unsub=None: self.sent.append(("email", to))
+        notify.send_email = lambda to, subj, body, html=None, unsub=None, smtp=None: self.sent.append(("email", to))
         notify.send_telegram = lambda chat, text: self.sent.append(("telegram", chat))
         notify.DRY = False
 
@@ -233,7 +233,7 @@ class Rollback(unittest.TestCase):
                          "claim must be rolled back when the send fails")
 
         sent = []
-        notify.send_email = lambda to, subj, body, html=None, unsub=None: sent.append(to)
+        notify.send_email = lambda to, subj, body, html=None, unsub=None, smtp=None: sent.append(to)
         notify.main()  # retry succeeds
         self.assertEqual(sent, ["u@example.com"])
         self.assertEqual(len(store.tables["notifications_sent"]), 1, "claim persists once sent")
@@ -243,7 +243,7 @@ class DigestWindow(unittest.TestCase):
     def setUp(self):
         self._saved = {k: getattr(notify, k) for k in ("rest", "send_email", "send_telegram", "DRY")}
         self.sent = []
-        notify.send_email = lambda to, subj, body, html=None, unsub=None: self.sent.append(("email", to))
+        notify.send_email = lambda to, subj, body, html=None, unsub=None, smtp=None: self.sent.append(("email", to))
         notify.send_telegram = lambda chat, text: self.sent.append(("telegram", chat))
         notify.DRY = False
 

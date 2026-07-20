@@ -39,7 +39,7 @@ export function ScopeToggle({ scope }: { scope: Scope }) {
           <Link
             key={s.value}
             href={hrefFor(s.value)}
-            aria-current={active ? "true" : undefined}
+            aria-current={active ? "page" : undefined}
             scroll={false}
             className={`min-h-9 inline-flex items-center rounded-md px-3 text-sm font-medium transition-colors ${
               active ? "bg-ink text-canvas" : "text-ink hover:bg-canvas"
