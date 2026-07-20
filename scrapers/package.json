@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Qellal tender scrapers (Crawlee). Writes pending_review rows only.",
+  "description": "Qellal tender scrapers (Crawlee). Trusted sources auto-publish (status='published').",
   "scripts": {
     "scrape": "tsx src/main.ts",
     "typecheck": "tsc --noEmit",

@@ -41,11 +41,29 @@ export async function getSavedTenders(): Promise<TenderCardData[]> {
 
   const { data: tenders } = await supabase
     .from("tenders")
-    .select("id,title,region,deadline,source_name,publishing_entity,category_id")
+    .select(
+      "id,title,region,deadline,source_name,publishing_entity,category_id,bid_bond,published_on,published_date,tender_categories(category_id)",
+    )
     .in("id", ids)
     .eq("status", "published");
 
+  // Flatten the category join so saved cards show the bid-bond badge + category
+  // chips like everywhere else.
+  const rows = (tenders ?? []) as unknown as Array<
+    Record<string, unknown> & {
+      id: string;
+      category_id: number | null;
+      tender_categories?: { category_id: number }[] | null;
+    }
+  >;
+  const byId = new Map(
+    rows.map((r) => {
+      const { tender_categories, ...rest } = r;
+      const catIds = (tender_categories ?? []).map((tc) => tc.category_id);
+      if (catIds.length === 0 && r.category_id != null) catIds.push(r.category_id);
+      return [r.id, { ...rest, category_ids: catIds } as unknown as TenderCardData];
+    }),
+  );
   // Preserve the save order (most recently saved first).
-  const byId = new Map((tenders ?? []).map((t) => [t.id, t]));
   return ids.map((id) => byId.get(id)).filter(Boolean) as TenderCardData[];
 }

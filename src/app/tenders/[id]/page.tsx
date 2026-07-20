@@ -72,7 +72,7 @@ export default async function TenderDetailPage({
   const saved = Boolean(savedRes.data);
 
   const d = daysLeft(tender.deadline);
-  const closed = d <= 0;
+  const closed = d < 0; // a deadline today (d === 0) is still open — closes today
   // Red/amber mean TIME ONLY; neutral & closed states stay paper on the ink card.
   const countdownColor = closed
     ? "text-canvas/60"
@@ -231,7 +231,7 @@ export default async function TenderDetailPage({
           <div className="lg:sticky lg:top-6">
             <div className="tender-deadline-card rounded-2xl bg-ink p-6 text-canvas shadow-[var(--shadow-lift)]">
               <p className="font-mono text-xs uppercase tracking-widest text-canvas/60">
-                {closed ? "Closed" : "Closes in"}
+                {closed ? "Closed" : d === 0 ? "Closes today" : "Closes in"}
               </p>
               <div
                 className={`mt-2 font-mono font-semibold leading-none tabular-nums ${countdownColor}`}
@@ -242,7 +242,9 @@ export default async function TenderDetailPage({
               <p className="mt-2 font-mono text-xs uppercase tracking-wide text-canvas/60">
                 {closed
                   ? `Closed ${formatDate(tender.deadline)}`
-                  : `${d === 1 ? "day" : "days"} · closes ${formatDate(tender.deadline)}`}
+                  : d === 0
+                    ? `closes ${formatDate(tender.deadline)}`
+                    : `${d === 1 ? "day" : "days"} · closes ${formatDate(tender.deadline)}`}
               </p>
 
               <div className="no-print mt-6">

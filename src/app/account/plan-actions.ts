@@ -41,15 +41,24 @@ async function currentStatus(
 
 export async function startTrial() {
   const { supabase, user } = await requireUser();
-  const status = await currentStatus(supabase, user.id);
-  // Trial only allowed with no live subscription.
-  if (status && status !== "canceled") return revalidatePath("/account");
+  const { data: existing } = await supabase
+    .from("billing_subscriptions")
+    .select("status,trial_started_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  // Trial only allowed with no live subscription...
+  if (existing && existing.status !== "canceled")
+    return revalidatePath("/account");
+  // ...and only once per user — a used trial is remembered across cancel, so
+  // trial -> cancel -> trial can't be looped for unlimited free Pro.
+  if (existing?.trial_started_at) return revalidatePath("/account");
 
   const admin = createAdminClient();
   await admin.from("billing_subscriptions").upsert({
     user_id: user.id,
     plan_id: "pro",
     status: "trialing",
+    trial_started_at: iso(0),
     trial_ends_at: iso(14 * DAY),
     current_period_start: iso(0),
     current_period_end: iso(14 * DAY),

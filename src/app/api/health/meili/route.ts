@@ -39,6 +39,8 @@ export async function GET() {
     });
   } catch (e) {
     const err = e as Error & { cause?: { code?: string } };
+    // Return only the error name + network code, NOT err.message — the raw
+    // message often embeds the Meili host/IP, and this endpoint is public.
     return NextResponse.json({
       ok: false,
       configured: true,
@@ -47,7 +49,6 @@ export async function GET() {
       error: {
         name: err?.name ?? null,
         code: err?.cause?.code ?? null,
-        message: err?.message ?? String(e),
       },
       diagnosis:
         "Configured but Meili is unreachable from this runtime. ENOTFOUND=DNS, ETIMEDOUT/ECONNREFUSED=network/firewall, AbortError=timeout (raise it or the server is slow from here).",

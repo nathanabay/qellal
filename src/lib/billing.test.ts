@@ -33,6 +33,10 @@ describe("paymentMatches", () => {
   it("rejects an underpaid amount", () => {
     expect(paymentMatches(expected, { amount: 1, currency: "ETB" })).toBe(false);
   });
+  it("accepts an overpaid amount (fee/rounding/price drift must not deny access)", () => {
+    expect(paymentMatches(expected, { amount: 299.5, currency: "ETB" })).toBe(true);
+    expect(paymentMatches(expected, { amount: 350, currency: "ETB" })).toBe(true);
+  });
   it("rejects a wrong currency", () => {
     expect(paymentMatches(expected, { amount: 299, currency: "USD" })).toBe(false);
   });

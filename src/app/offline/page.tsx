@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export const metadata = { title: "Offline — Qellal" };
 
 export default function OfflinePage() {
@@ -12,12 +10,16 @@ export default function OfflinePage() {
         We couldn&apos;t reach the network. Previously viewed tenders may still be
         available — reconnect to see the latest.
       </p>
-      <Link
+      {/* Plain anchor (not next/link): a full navigation actually re-hits the
+          network, so it works the moment the user is back online — a client-side
+          soft nav could resolve from a stale cache or fail silently. */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+      <a
         href="/tenders"
         className="mt-6 inline-block rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-hover"
       >
         Try again
-      </Link>
+      </a>
     </main>
   );
 }

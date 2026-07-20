@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { createAnonClient } from "@/lib/supabase/anon";
+import { collectAllRows } from "@/lib/supabase/paginate";
 import type { TenderCardData } from "@/components/TenderCard";
 
 // Market intelligence over the historical archive. Publication-stage only —
@@ -68,20 +69,28 @@ export async function getEntityProfile(entity: string): Promise<EntityProfile> {
       .eq("publishing_entity", entity)
       .order("deadline", { ascending: false })
       .limit(50),
-    // Breakdown over ALL of the entity's tenders, via the many-to-many join.
-    supabase
-      .from("tenders")
-      .select("region,tender_categories(category_id)")
-      .eq("status", "published")
-      .eq("publishing_entity", entity),
+    // Breakdown over ALL of the entity's tenders, via the many-to-many join. A
+    // prolific buyer can have >1000 tenders, so page through (PostgREST caps at
+    // 1000/response) — otherwise the sector/region mix is computed from a slice.
+    collectAllRows<{
+      region: string | null;
+      tender_categories?: { category_id: number }[] | null;
+    }>((from, to) =>
+      supabase
+        .from("tenders")
+        .select("region,tender_categories(category_id)")
+        .eq("status", "published")
+        .eq("publishing_entity", entity)
+        .order("id", { ascending: true })
+        .range(from, to),
+    ),
   ]);
 
   const sectorCounts: Record<number, number> = {};
   const regionCounts: Record<string, number> = {};
-  const rows = (breakdownRes.data ?? []) as unknown as {
-    region: string | null;
-    tender_categories?: { category_id: number }[] | null;
-  }[];
+  if (breakdownRes.error)
+    console.error("entity breakdown failed:", breakdownRes.error);
+  const rows = breakdownRes.rows;
   for (const r of rows) {
     for (const tc of r.tender_categories ?? [])
       sectorCounts[tc.category_id] = (sectorCounts[tc.category_id] ?? 0) + 1;

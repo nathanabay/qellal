@@ -93,12 +93,11 @@ const row = {
 ```
 - Fail loudly: throw on parse errors so the GitHub Actions run fails and notifies.
 - Skip duplicates by checking existing `source_url` before insert.
-- ⚠️ **Auto-publish divergence:** `upsert.ts` currently inserts scraped tenders as
-  `status='published'` (2merkato is treated as a trusted source; only manual admin
-  entries go to `pending_review`). This contradicts the `AGENTS.md` hard rule that
-  scrapers write `pending_review` only — tracked as an open decision in `MEMORY.md`.
-  It also matters for notifications: only `published` tenders with a `published_at`
-  reach the digest.
+- **Auto-publish (blessed rule):** `upsert.ts` inserts scraped tenders as
+  `status='published'` because 2merkato is a curated, trusted source; only manual
+  admin entries go to `pending_review`. This is the intended behavior — the
+  `AGENTS.md`/`CLAUDE.md` hard rules reflect it. It also matters for notifications:
+  only `published` tenders with a `published_at` reach the digest.
 
 ## UI Rules
 - Mobile-first: style for 375px, then add `md:`/`lg:` variants

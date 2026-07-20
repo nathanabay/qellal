@@ -53,7 +53,12 @@ jobs:
           # Meilisearch — the scraper pushes new tenders to the index as it writes.
           MEILI_HOST: ${{ secrets.MEILI_HOST }}
           MEILI_ADMIN_KEY: ${{ secrets.MEILI_ADMIN_KEY }}
-        run: npm run scrape -- ${{ github.event.inputs.source || '2merkato' }} ${{ github.event.inputs.pages || '500' }}
+          # Pass user inputs through env (NOT interpolated into the shell command)
+          # so a crafted `source`/`pages` value can't inject shell into a job that
+          # holds the service-role key.
+          SOURCE: ${{ github.event.inputs.source || '2merkato' }}
+          PAGES: ${{ github.event.inputs.pages || '500' }}
+        run: npm run scrape -- "$SOURCE" "$PAGES"
       - name: Reindex search (reconcile after scrape)
         if: ${{ github.event.inputs.dry_run != '1' }}
         working-directory: scrapers

@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAnonClient } from "@/lib/supabase/anon";
 import { normalizeSearch, searchOrClause } from "@/lib/search";
+import { collectAllRows } from "@/lib/supabase/paginate";
 import type { TenderCardData } from "@/components/TenderCard";
 
 // Business logic lives here, not in page components (project rule).
@@ -93,14 +94,6 @@ export async function getPublishedTenders(
     if (batch.length < CHUNK) break; // reached the end
   }
 
-  // Flatten the nested join into a category_ids array so the client can filter
-  // by ANY of a tender's categories, not just its primary one.
-  const rows = rawAll as Array<
-    Record<string, unknown> & {
-      category_id: number | null;
-      tender_categories?: { category_id: number }[] | null;
-    }
-  >;
   return { state: "ok", tenders: flattenRows(rawAll) };
 }
 
@@ -349,21 +342,27 @@ async function facetCountsUncached(): Promise<FacetCounts> {
   const empty: FacetCounts = { categories: {}, regions: {} };
   const supabase = createAnonClient();
   const today = new Date().toISOString().slice(0, 10);
-  const { data, error } = await supabase
-    .from("tenders")
-    .select("category_id,region,deadline,tender_categories(category_id)")
-    .eq("status", "published")
-    .gte("deadline", today); // open only
-
-  if (error) {
-    console.error("facet counts failed:", error.message);
-    return empty;
-  }
-  const rows = (data ?? []) as unknown as {
+  // Page through ALL open tenders (PostgREST caps at 1000/response) so the sector
+  // and region counts are complete, not computed over an arbitrary first 1000.
+  const { rows: data, error } = await collectAllRows<{
     category_id: number | null;
     region: string | null;
     tender_categories?: { category_id: number }[] | null;
-  }[];
+  }>((from, to) =>
+    supabase
+      .from("tenders")
+      .select("category_id,region,deadline,tender_categories(category_id)")
+      .eq("status", "published")
+      .gte("deadline", today) // open only
+      .order("id", { ascending: true }) // stable order for range paging
+      .range(from, to),
+  );
+
+  if (error) {
+    console.error("facet counts failed:", error);
+    return empty;
+  }
+  const rows = data;
   const categories: Record<number, number> = {};
   const regions: Record<string, number> = {};
   for (const r of rows) {
@@ -387,15 +386,21 @@ export async function getDistinctRegions(): Promise<string[]> {
   return unstable_cache(
     async () => {
       const supabase = createAnonClient();
-      const { data, error } = await supabase
-        .from("tenders")
-        .select("region")
-        .eq("status", "published");
+      // Page through all published rows (1000/response cap) so a region that
+      // only appears on older tenders still shows up in the filter dropdown.
+      const { rows, error } = await collectAllRows<{ region: string | null }>(
+        (from, to) =>
+          supabase
+            .from("tenders")
+            .select("region")
+            .eq("status", "published")
+            .order("id", { ascending: true })
+            .range(from, to),
+      );
       if (error) {
-        console.error("regions fetch failed:", error.message);
+        console.error("regions fetch failed:", error);
         return [];
       }
-      const rows = (data ?? []) as { region: string | null }[];
       const set = new Set<string>();
       for (const row of rows) {
         if (row.region) set.add(row.region);

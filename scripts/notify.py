@@ -266,7 +266,7 @@ def unsubscribe_url(profile):
     return f"{APP_URL}/api/unsubscribe?token={token}" if token else None
 
 
-def send_email(to, subject, body, html_body=None, unsub_url=None):
+def _build_email(to, subject, body, html_body, unsub_url):
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = os.environ.get("SMTP_FROM", os.environ["SMTP_USER"])
@@ -279,6 +279,28 @@ def send_email(to, subject, body, html_body=None, unsub_url=None):
     msg.set_content(body)  # text/plain part (fallback)
     if html_body:
         msg.add_alternative(html_body, subtype="html")  # multipart/alternative
+    return msg
+
+
+def open_smtp():
+    """One reusable, logged-in SMTP_SSL connection for the whole batch. Logging in
+    once (instead of per message) avoids the burst of logins that most providers
+    greylist / rate-limit. Returns a connection the caller must quit()."""
+    ctx = ssl.create_default_context()
+    s = smtplib.SMTP_SSL(
+        os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT", "465")),
+        context=ctx, timeout=30,
+    )
+    s.login(os.environ["SMTP_USER"], os.environ["SMTP_PASS"])
+    return s
+
+
+def send_email(to, subject, body, html_body=None, unsub_url=None, smtp=None):
+    msg = _build_email(to, subject, body, html_body, unsub_url)
+    if smtp is not None:
+        smtp.send_message(msg)  # reuse the batch connection
+        return
+    # Fallback (no shared connection): open a one-off connection for this message.
     ctx = ssl.create_default_context()
     with smtplib.SMTP_SSL(
         os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT", "465")),
@@ -338,7 +360,7 @@ def _clear_telegram(chat_id):
         print(f"  ! clear telegram failed: {e}", file=sys.stderr)
 
 
-def deliver(profile, channel, kind, items):
+def deliver(profile, channel, kind, items, smtp=None):
     # Telegram has its own /stop unsubscribe; only email needs the footer/header.
     unsub_url = unsubscribe_url(profile) if channel == "email" else None
     subject, body = compose(kind, items, unsub_url)
@@ -349,7 +371,7 @@ def deliver(profile, channel, kind, items):
     try:
         if channel == "email":
             html_body = compose_html(kind, items, unsub_url)
-            send_email(profile["email"], subject, body, html_body, unsub_url)
+            send_email(profile["email"], subject, body, html_body, unsub_url, smtp=smtp)
         else:
             status = send_telegram(profile["telegram_chat_id"], f"{subject}\n\n{body}")
             if status == "blocked":
@@ -420,7 +442,15 @@ def main():
     })
     tcats = rest("tender_categories", params={"select": "tender_id,category_id"})
     saved = rest("saved_tenders", params={"select": "user_id,tender_id"})
-    sent = rest("notifications_sent", params={"select": "user_id,tender_id,channel,kind"})
+    # Only the recent dedup window matters: the widest thing we dedup against is a
+    # weekly digest (7d) / T-7 reminder, so 35 days is a safe margin. Bounding the
+    # read keeps this from paging the ENTIRE (ever-growing) table into memory on
+    # every run — the table grows forever, but the hot path stays flat.
+    dedup_cutoff = (now - datetime.timedelta(days=35)).isoformat()
+    sent = rest("notifications_sent", params={
+        "select": "user_id,tender_id,channel,kind",
+        "sent_at": f"gte.{dedup_cutoff}",
+    })
     sent_set = {(s["user_id"], s["tender_id"], s["channel"], s["kind"]) for s in sent}
 
     subs_by_user = {}
@@ -518,16 +548,36 @@ def main():
                 if fresh:
                     plan.append((p, ch, "digest", fresh))
 
-    for p, ch, kind, items in plan:
-        # Claim each item (record it) BEFORE sending; if the send fails, roll the
-        # claims back so nothing is lost. This makes a double-send impossible (the
-        # unique constraint rejects a re-claim) without dropping messages.
-        claimed = [t for t in items if claim(p["id"], t["id"], ch, kind)]
-        if not claimed:
-            continue
-        if not deliver(p, ch, kind, claimed):
-            for t in claimed:
-                unclaim(p["id"], t["id"], ch, kind)
+    # Open ONE SMTP connection for the whole email batch (falls back to
+    # per-message connections if this fails). Telegram is unaffected.
+    smtp = None
+    if not DRY and any(ch == "email" for _, ch, _, _ in plan):
+        try:
+            smtp = open_smtp()
+        except Exception as e:  # noqa: BLE001
+            print(f"  ! SMTP connect failed, using per-message connections: {e}",
+                  file=sys.stderr)
+            smtp = None
+    try:
+        for p, ch, kind, items in plan:
+            # Claim each item (record it) BEFORE sending; if the send fails, roll
+            # the claims back so nothing is lost. This makes a double-send
+            # impossible (the unique constraint rejects a re-claim) without
+            # dropping messages.
+            claimed = [t for t in items if claim(p["id"], t["id"], ch, kind)]
+            if not claimed:
+                continue
+            if not deliver(p, ch, kind, claimed, smtp=smtp):
+                for t in claimed:
+                    unclaim(p["id"], t["id"], ch, kind)
+            elif ch == "email" and smtp is not None:
+                time.sleep(0.3)  # gentle throttle so bursts don't trip rate limits
+    finally:
+        if smtp is not None:
+            try:
+                smtp.quit()
+            except Exception:  # noqa: BLE001
+                pass
 
     verb = "DRY-RUN: would send" if DRY else "Sent"
     print(f"{verb} {len(plan)} message(s) across {len(profiles)} profile(s).")

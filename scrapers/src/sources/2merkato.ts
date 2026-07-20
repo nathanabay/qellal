@@ -324,9 +324,9 @@ export async function scrape2merkato(
         return;
       }
 
-      // LIST page: enqueue a detail request per open tender. Tenders are
-      // newest-first, so once we hit a run of all-closed pages we've passed
-      // the last open tender — auto-stop instead of crawling the dead archive.
+      // LIST page: enqueue a detail request per tender. The list URL is filtered
+      // to ?status=open, so the feed only contains open tenders; paging stops at
+      // the first empty page (end of the open set) or the maxPages cap below.
       const list = page.props?.tenders?.data ?? [];
       const pageNum = Number(
         new URL(request.url).searchParams.get("page") ?? "1",
@@ -334,7 +334,7 @@ export async function scrape2merkato(
       const details: { url: string; label: string; userData: object }[] = [];
       let newOnPage = 0;
       for (const t of list) {
-        // Open AND closed tenders — no is_open filter.
+        // The feed is already ?status=open, so no per-row is_open filter needed.
         const sourceUrl = `${BASE}/tenders/${t.id}`;
         if (existingUrls.has(sourceUrl)) continue; // already scraped — skip
         const title = t.title?.trim();

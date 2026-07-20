@@ -43,14 +43,23 @@ export async function initializeTransaction(
 
 export async function verifyTransaction(
   txRef: string,
-): Promise<{ success: boolean; amount?: number; currency?: string }> {
+): Promise<{
+  success: boolean;
+  amount?: number;
+  currency?: string;
+  // `error` = we couldn't determine the outcome (network/config), as opposed to
+  // `success: false` meaning Chapa authoritatively says it's not paid. Callers
+  // use it to decide whether the payment provider should RETRY the webhook.
+  error?: boolean;
+}> {
   const secret = process.env.CHAPA_SECRET_KEY;
-  if (!secret) return { success: false };
+  if (!secret) return { success: false, error: true };
   try {
     const res = await fetch(
       `${CHAPA_BASE}/transaction/verify/${encodeURIComponent(txRef)}`,
       { headers: { Authorization: `Bearer ${secret}` } },
     );
+    if (!res.ok) return { success: false, error: true }; // transient upstream
     const data = await res.json();
     const ok = data?.status === "success" && data?.data?.status === "success";
     return {
@@ -60,6 +69,6 @@ export async function verifyTransaction(
     };
   } catch (e) {
     console.error("chapa verify error:", e);
-    return { success: false };
+    return { success: false, error: true };
   }
 }
