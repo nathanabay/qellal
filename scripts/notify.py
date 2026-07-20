@@ -409,9 +409,14 @@ def main():
     subs_all = rest("subscriptions", params={
         "select": "id,user_id,category_id,keyword,region",
     })
+    # Only OPEN tenders (deadline today or later): a closed tender can never fire
+    # a reminder (reminder_kind needs days_left >= 1) or a digest (requires
+    # deadline >= today), so this cuts the match set from ~all published to just
+    # the open ones — the dominant cost of the per-user matching loop.
     tenders = rest("tenders", params={
         "select": "id,title,description,publishing_entity,category_id,region,deadline,source_name,published_at",
         "status": "eq.published",
+        "deadline": f"gte.{today.isoformat()}",
     })
     tcats = rest("tender_categories", params={"select": "tender_id,category_id"})
     saved = rest("saved_tenders", params={"select": "user_id,tender_id"})

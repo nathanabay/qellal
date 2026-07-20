@@ -41,22 +41,15 @@ export default async function TenderDetailPage({
   if (!tender) notFound();
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  let saved = false;
-  if (user) {
-    const { data } = await supabase
-      .from("saved_tenders")
-      .select("tender_id")
-      .eq("tender_id", tender.id)
-      .maybeSingle();
-    saved = Boolean(data);
-  }
+  // Independent of each other — run in parallel once we have the tender.
+  const [userRes, joinCats] = await Promise.all([
+    supabase.auth.getUser(),
+    getTenderCategories(tender.id),
+  ]);
+  const user = userRes.data.user;
 
   // Prefer the many-to-many join; fall back to the primary category_id so
   // tenders without join rows (e.g. manually-added ones) still show a category.
-  const joinCats = await getTenderCategories(tender.id);
   const tenderCats =
     joinCats.length > 0
       ? joinCats
@@ -64,7 +57,19 @@ export default async function TenderDetailPage({
         ? (await getCategories()).filter((c) => c.id === tender.category_id)
         : [];
   const catIds = tenderCats.map((c) => c.id);
-  const similar = await getSimilarTenders(catIds, tender.id, 4);
+
+  // Saved-status and similar tenders are independent — run them together.
+  const [savedRes, similar] = await Promise.all([
+    user
+      ? supabase
+          .from("saved_tenders")
+          .select("tender_id")
+          .eq("tender_id", tender.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    getSimilarTenders(catIds, tender.id, 4),
+  ]);
+  const saved = Boolean(savedRes.data);
 
   const d = daysLeft(tender.deadline);
   const closed = d <= 0;

@@ -379,23 +379,30 @@ async function facetCountsUncached(): Promise<FacetCounts> {
 
 // Region is free-text on tenders — derive the filter options from the data
 // that actually exists, so the dropdown is always accurate.
+// The distinct set of regions changes ~never, but this scans the tenders table.
+// Cache it for an hour (like getCategories) so it's off the per-request hot path
+// (/tenders and /account previously ran this uncached on every load).
 export async function getDistinctRegions(): Promise<string[]> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [];
-
-  const supabase = createAnonClient();
-  const { data, error } = await supabase
-    .from("tenders")
-    .select("region")
-    .eq("status", "published");
-
-  if (error) {
-    console.error("regions fetch failed:", error.message);
-    return [];
-  }
-  const rows = (data ?? []) as { region: string | null }[];
-  const set = new Set<string>();
-  for (const row of rows) {
-    if (row.region) set.add(row.region);
-  }
-  return [...set].sort();
+  return unstable_cache(
+    async () => {
+      const supabase = createAnonClient();
+      const { data, error } = await supabase
+        .from("tenders")
+        .select("region")
+        .eq("status", "published");
+      if (error) {
+        console.error("regions fetch failed:", error.message);
+        return [];
+      }
+      const rows = (data ?? []) as { region: string | null }[];
+      const set = new Set<string>();
+      for (const row of rows) {
+        if (row.region) set.add(row.region);
+      }
+      return [...set].sort();
+    },
+    ["distinct-regions"],
+    { revalidate: 3600 },
+  )();
 }
