@@ -1,7 +1,7 @@
 // Config-driven plan catalog (Catalog Management). Pricing/features live HERE as
 // configuration, not hard-coded in components — change a plan by editing this file.
-// NOTE: no payment processing. Prices are display-only until a real gateway
-// (Chapa/Telebirr) is connected in a later slice. Amounts are Ethiopian Birr.
+// Amounts are Ethiopian Birr. Checkout runs through Chapa (sandbox); entitlement
+// enforcement lives in src/lib/access.ts and is gated by FREE_PERIOD.
 
 export type PlanId = "free" | "pro";
 

@@ -1,35 +1,42 @@
 import { type NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { verifyTransaction } from "@/lib/chapa";
-import { activatePro } from "@/lib/billing-activate";
+import { settlePayment } from "@/lib/billing-activate";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Chapa POSTs here on payment completion (and failed payments, if enabled).
-// Security: we ALSO re-verify every event with Chapa's /verify API before acting,
-// so a spoofed request can never grant Pro. Needs SUPABASE_SERVICE_ROLE_KEY to
-// write (no user session in a webhook).
+// Chapa POSTs here on payment completion. Defense in depth:
+//  1. verify the webhook signature (when CHAPA_WEBHOOK_SECRET is configured), and
+//  2. re-verify the transaction with Chapa's /verify API,
+// then settle the payment exactly once (amount-checked, race-safe). Needs
+// SUPABASE_SERVICE_ROLE_KEY to write (no user session in a webhook).
+
+function signatureValid(secret: string, raw: string, sig: string): boolean {
+  // Chapa signs with HMAC-SHA256 of either the payload or the secret itself.
+  const candidates = [
+    crypto.createHmac("sha256", secret).update(raw).digest("hex"),
+    crypto.createHmac("sha256", secret).update(secret).digest("hex"),
+  ];
+  const given = Buffer.from(sig);
+  return candidates.some((c) => {
+    const expected = Buffer.from(c);
+    return expected.length === given.length && crypto.timingSafeEqual(expected, given);
+  });
+}
+
 export async function POST(req: NextRequest) {
   const raw = await req.text();
 
-  // Signature check (defense in depth). Chapa signs with the webhook secret —
-  // either HMAC-SHA256 of the payload (Chapa-Signature) or of the secret itself
-  // (x-chapa-signature). Logged, not fatal: /verify below is the real gate.
+  // When a webhook secret is configured, REQUIRE a valid signature — reject
+  // forged/unsigned requests. (If unset, we fall back to the /verify check
+  // below; production must set CHAPA_WEBHOOK_SECRET.)
   const secret = process.env.CHAPA_WEBHOOK_SECRET;
   if (secret) {
     const sig =
       req.headers.get("chapa-signature") ??
       req.headers.get("x-chapa-signature") ??
       "";
-    const bodyHmac = crypto
-      .createHmac("sha256", secret)
-      .update(raw)
-      .digest("hex");
-    const secretHmac = crypto
-      .createHmac("sha256", secret)
-      .update(secret)
-      .digest("hex");
-    if (sig && sig !== bodyHmac && sig !== secretHmac) {
-      console.warn("chapa webhook: signature mismatch (verifying via API anyway)");
+    if (!sig || !signatureValid(secret, raw, sig)) {
+      return NextResponse.json({ ok: false }, { status: 401 });
     }
   }
 
@@ -42,26 +49,13 @@ export async function POST(req: NextRequest) {
   const txRef = body.tx_ref ?? body.data?.tx_ref;
   if (!txRef) return NextResponse.json({ ok: true });
 
-  const { success } = await verifyTransaction(txRef);
-  if (!success) return NextResponse.json({ ok: true });
+  const verified = await verifyTransaction(txRef);
+  if (!verified.success) return NextResponse.json({ ok: true });
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ ok: true, note: "service role not configured" });
   }
 
-  const admin = createAdminClient();
-  const { data: payment } = await admin
-    .from("payments")
-    .select("status,user_id")
-    .eq("tx_ref", txRef)
-    .maybeSingle();
-  if (!payment || payment.status === "success")
-    return NextResponse.json({ ok: true });
-
-  await admin
-    .from("payments")
-    .update({ status: "success", paid_at: new Date().toISOString() })
-    .eq("tx_ref", txRef);
-  await activatePro(admin, payment.user_id);
-  return NextResponse.json({ ok: true });
+  const result = await settlePayment(createAdminClient(), txRef, verified);
+  return NextResponse.json({ ok: true, result });
 }

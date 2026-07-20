@@ -1,11 +1,51 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { generateInvoice } from "@/lib/invoicing";
+import { paymentMatches } from "@/lib/billing-math";
 import { PLANS } from "@/lib/plans";
 
-// Activate Pro for a user after a successful payment. Called from the Chapa
-// return handler (user session) and the webhook (service role). Callers must
-// only invoke this when the payment was still pending (idempotency guard).
+// Settle a Chapa payment exactly once: validate the confirmed amount/currency,
+// then atomically move the row pending -> success and activate Pro. The atomic
+// `where status='pending'` update means that when the webhook and the return
+// handler race for the same tx_ref, only one wins the row and activation runs
+// once (no duplicate paid invoices / period resets). Caller must have already
+// confirmed the payment with Chapa's /verify.
+export async function settlePayment(
+  admin: SupabaseClient<Database>,
+  txRef: string,
+  verified: { amount?: number; currency?: string },
+): Promise<"activated" | "amount_mismatch" | "already_processed"> {
+  const { data: payment } = await admin
+    .from("payments")
+    .select("user_id, amount, currency, status")
+    .eq("tx_ref", txRef)
+    .maybeSingle();
+  if (!payment || payment.status === "success") return "already_processed";
+
+  if (!paymentMatches({ amount: payment.amount, currency: payment.currency }, verified)) {
+    await admin
+      .from("payments")
+      .update({ status: "failed" })
+      .eq("tx_ref", txRef)
+      .eq("status", "pending");
+    return "amount_mismatch";
+  }
+
+  const { data: claimed } = await admin
+    .from("payments")
+    .update({ status: "success", paid_at: new Date().toISOString() })
+    .eq("tx_ref", txRef)
+    .eq("status", "pending")
+    .select("user_id")
+    .maybeSingle();
+  if (!claimed) return "already_processed";
+
+  await activatePro(admin, claimed.user_id);
+  return "activated";
+}
+
+// Activate Pro for a user after a successful payment. Called by settlePayment
+// once the pending->success transition has been won, so it runs exactly once.
 export async function activatePro(
   supabase: SupabaseClient<Database>,
   userId: string,

@@ -1,10 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyTransaction } from "@/lib/chapa";
-import { activatePro } from "@/lib/billing-activate";
+import { settlePayment } from "@/lib/billing-activate";
 
-// Chapa redirects the paying user back here. We verify with Chapa (never trust
-// the redirect alone) and, if paid, activate Pro using the user's own session.
+// Chapa redirects the paying user back here. We check ownership with the user's
+// session, re-verify with Chapa (never trust the redirect alone), then settle
+// the payment via the service role (amount-checked + exactly-once, shared with
+// the webhook). Billing tables are read-only to users under RLS, so writes must
+// use the admin client.
 export async function GET(req: NextRequest) {
   const txRef = new URL(req.url).searchParams.get("tx_ref");
   if (!txRef) return NextResponse.redirect(new URL("/account", req.url));
@@ -15,6 +19,7 @@ export async function GET(req: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/login", req.url));
 
+  // Ownership check on the user's own session (RLS select).
   const { data: payment } = await supabase
     .from("payments")
     .select("status,user_id")
@@ -25,19 +30,18 @@ export async function GET(req: NextRequest) {
   if (payment.status === "success")
     return NextResponse.redirect(new URL("/account?upgraded=1", req.url));
 
-  const { success } = await verifyTransaction(txRef);
-  if (success) {
-    await supabase
+  const verified = await verifyTransaction(txRef);
+  if (!verified.success) {
+    await createAdminClient()
       .from("payments")
-      .update({ status: "success", paid_at: new Date().toISOString() })
-      .eq("tx_ref", txRef);
-    await activatePro(supabase, user.id);
-    return NextResponse.redirect(new URL("/account?upgraded=1", req.url));
+      .update({ status: "failed" })
+      .eq("tx_ref", txRef)
+      .eq("status", "pending");
+    return NextResponse.redirect(new URL("/account?payment=failed", req.url));
   }
 
-  await supabase
-    .from("payments")
-    .update({ status: "failed" })
-    .eq("tx_ref", txRef);
-  return NextResponse.redirect(new URL("/account?payment=failed", req.url));
+  const result = await settlePayment(createAdminClient(), txRef, verified);
+  const dest =
+    result === "amount_mismatch" ? "/account?payment=failed" : "/account?upgraded=1";
+  return NextResponse.redirect(new URL(dest, req.url));
 }

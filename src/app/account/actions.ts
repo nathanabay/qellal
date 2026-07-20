@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { subscriptionLimit } from "@/lib/access";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -44,6 +45,22 @@ export async function addSubscription(formData: FormData) {
 
   // Need at least one criterion, else the alert would match everything.
   if (!category_id && !keyword && !region) return;
+
+  // Enforce the plan's saved-alert cap. subscriptionLimit() returns null (no cap)
+  // during the free period, so this is behavior-neutral until billing goes live.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("plan")
+    .eq("id", user.id)
+    .maybeSingle();
+  const limit = subscriptionLimit(profile?.plan ?? "free");
+  if (limit !== null) {
+    const { count } = await supabase
+      .from("subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    if ((count ?? 0) >= limit) return revalidatePath("/account");
+  }
 
   const { error } = await supabase
     .from("subscriptions")

@@ -287,6 +287,7 @@ export type Database = {
           digest_frequency: string;
           deadline_reminders: boolean | null;
           telegram_link_token: string;
+          unsubscribe_token: string;
           notifications_paused_until: string | null;
           created_at: string | null;
         };
@@ -304,6 +305,7 @@ export type Database = {
           digest_frequency?: string;
           deadline_reminders?: boolean | null;
           telegram_link_token?: string;
+          unsubscribe_token?: string;
           notifications_paused_until?: string | null;
           created_at?: string | null;
         };
@@ -321,6 +323,7 @@ export type Database = {
           digest_frequency?: string;
           deadline_reminders?: boolean | null;
           telegram_link_token?: string;
+          unsubscribe_token?: string;
           notifications_paused_until?: string | null;
           created_at?: string | null;
         };

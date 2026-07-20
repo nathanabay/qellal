@@ -43,7 +43,7 @@ export async function initializeTransaction(
 
 export async function verifyTransaction(
   txRef: string,
-): Promise<{ success: boolean; amount?: number }> {
+): Promise<{ success: boolean; amount?: number; currency?: string }> {
   const secret = process.env.CHAPA_SECRET_KEY;
   if (!secret) return { success: false };
   try {
@@ -56,6 +56,7 @@ export async function verifyTransaction(
     return {
       success: ok,
       amount: data?.data?.amount ? Number(data.data.amount) : undefined,
+      currency: data?.data?.currency ?? undefined,
     };
   } catch (e) {
     console.error("chapa verify error:", e);
