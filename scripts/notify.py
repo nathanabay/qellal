@@ -22,6 +22,7 @@ import sys
 import ssl
 import html
 import json
+import time
 import smtplib
 import datetime
 import functools
@@ -50,6 +51,8 @@ REMINDER_LABELS = {
     "reminder_3": "closing in a few days",
     "reminder_1": "closes tomorrow",
 }
+
+TG_MAX = 3900  # Telegram's hard limit is 4096; leave headroom for the subject.
 
 
 def reminder_kind(days_left):
@@ -186,9 +189,16 @@ def rest(path, method="GET", params=None, body=None):
 
 
 def matches(sub, tender):
-    """A subscription matches a tender if every non-empty criterion matches (AND)."""
-    if sub.get("category_id") and sub["category_id"] != tender.get("category_id"):
-        return False
+    """A subscription matches a tender if every non-empty criterion matches (AND).
+    Category matches ANY of a tender's categories (the many-to-many set), parity
+    with the browse/search page."""
+    if sub.get("category_id"):
+        cat_ids = tender.get("_cat_ids")
+        if cat_ids is None:  # not attached (e.g. unit test) — fall back to primary
+            pid = tender.get("category_id")
+            cat_ids = {pid} if pid is not None else set()
+        if sub["category_id"] not in cat_ids:
+            return False
     if sub.get("region") and sub["region"] != tender.get("region"):
         return False
     if sub.get("keyword") and not keyword_matches(sub["keyword"], tender):
@@ -204,7 +214,10 @@ def user_matches(subs, tender):
 
 def _subject(kind, items):
     if kind.startswith("reminder"):
-        return f"Tender {REMINDER_LABELS.get(kind, 'closing soon')}: {items[0]['title'][:60]}"
+        label = REMINDER_LABELS.get(kind, "closing soon")
+        if len(items) == 1:
+            return f"Tender {label}: {items[0]['title'][:60]}"
+        return f"{len(items)} tenders {label}"
     n = len(items)
     return f"{n} new Ethiopian tender{'s' if n != 1 else ''} match your alerts"
 
@@ -275,18 +288,54 @@ def send_email(to, subject, body, html_body=None, unsub_url=None):
         s.send_message(msg)
 
 
-def send_telegram(chat_id, text):
-    token = os.environ["TELEGRAM_BOT_TOKEN"]
+def _tg_send_one(token, chat_id, text, attempt=0):
     body = urllib.parse.urlencode({
-        "chat_id": chat_id,
-        "text": text,
-        "disable_web_page_preview": "true",
+        "chat_id": chat_id, "text": text, "disable_web_page_preview": "true",
     }).encode()
     req = urllib.request.Request(
-        f"https://api.telegram.org/bot{token}/sendMessage", data=body, method="POST"
-    )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        r.read()
+        f"https://api.telegram.org/bot{token}/sendMessage", data=body, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            r.read()
+        return "ok"
+    except urllib.error.HTTPError as e:
+        if e.code == 429 and attempt < 3:  # rate limited — honor retry_after
+            retry = 1
+            try:
+                retry = int(json.loads(e.read().decode())
+                            .get("parameters", {}).get("retry_after", 1))
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(retry + 1)
+            return _tg_send_one(token, chat_id, text, attempt + 1)
+        if e.code == 403:  # the user blocked the bot
+            return "blocked"
+        raise
+
+
+def send_telegram(chat_id, text):
+    """Send (chunked to Telegram's size limit), pacing ~1 msg/s per chat.
+    Returns 'ok' | 'blocked' | (raises on other errors)."""
+    token = os.environ["TELEGRAM_BOT_TOKEN"]
+    chunks = [text[i:i + TG_MAX] for i in range(0, len(text), TG_MAX)] or [text]
+    for chunk in chunks:
+        status = _tg_send_one(token, chat_id, chunk)
+        if status != "ok":
+            return status
+        time.sleep(1.1)  # per-chat rate limit is ~1 msg/s
+    return "ok"
+
+
+def _clear_telegram(chat_id):
+    """A blocked chat — stop retrying it every day (mirror /stop)."""
+    if DRY:
+        return
+    try:
+        rest("profiles", method="PATCH",
+             params={"telegram_chat_id": f"eq.{chat_id}"},
+             body={"telegram_notifications": False, "telegram_chat_id": None})
+    except Exception as e:  # noqa: BLE001
+        print(f"  ! clear telegram failed: {e}", file=sys.stderr)
 
 
 def deliver(profile, channel, kind, items):
@@ -302,7 +351,10 @@ def deliver(profile, channel, kind, items):
             html_body = compose_html(kind, items, unsub_url)
             send_email(profile["email"], subject, body, html_body, unsub_url)
         else:
-            send_telegram(profile["telegram_chat_id"], f"{subject}\n\n{body}")
+            status = send_telegram(profile["telegram_chat_id"], f"{subject}\n\n{body}")
+            if status == "blocked":
+                _clear_telegram(profile["telegram_chat_id"])
+                return False
         return True
     except Exception as e:  # noqa: BLE001 - fail one send, not the whole run
         print(f"  ! send failed [{channel}] {kind}: {e}", file=sys.stderr)
@@ -361,6 +413,7 @@ def main():
         "select": "id,title,description,publishing_entity,category_id,region,deadline,source_name,published_at",
         "status": "eq.published",
     })
+    tcats = rest("tender_categories", params={"select": "tender_id,category_id"})
     saved = rest("saved_tenders", params={"select": "user_id,tender_id"})
     sent = rest("notifications_sent", params={"select": "user_id,tender_id,channel,kind"})
     sent_set = {(s["user_id"], s["tender_id"], s["channel"], s["kind"]) for s in sent}
@@ -374,6 +427,16 @@ def main():
         saved_by_user.setdefault(s["user_id"], set()).add(s["tender_id"])
 
     tenders_by_id = {t["id"]: t for t in tenders}
+
+    # Category set per tender (many-to-many join + primary) for ANY-match.
+    cats_by_tender = {}
+    for tc in tcats:
+        cats_by_tender.setdefault(tc["tender_id"], set()).add(tc["category_id"])
+    for t in tenders:
+        ids = set(cats_by_tender.get(t["id"], set()))
+        if t.get("category_id") is not None:
+            ids.add(t["category_id"])
+        t["_cat_ids"] = ids
 
     plan = []  # (profile, channel, kind, [tenders])
 
@@ -402,9 +465,10 @@ def main():
         matched = [t for t in tenders if user_matches(usubs, t)] if usubs else []
 
         # Reminders (time-sensitive): subscription matches + individually saved
-        # tenders (per-tender "remind me"). One message per tender per stage.
+        # tenders. Batched into ONE message per stage per channel (no flooding).
         if p.get("deadline_reminders", True):
             reminder_ids = {t["id"] for t in matched} | saved_ids
+            by_kind = {}  # kind -> [tenders]
             for tid in reminder_ids:
                 t = tenders_by_id.get(tid)
                 if not t:
@@ -414,11 +478,14 @@ def main():
                 except Exception:  # noqa: BLE001
                     continue
                 kind = reminder_kind(days)
-                if not kind:
-                    continue
+                if kind:
+                    by_kind.setdefault(kind, []).append(t)
+            for kind, tlist in by_kind.items():
                 for ch in channels:
-                    if (p["id"], t["id"], ch, kind) not in sent_set:
-                        plan.append((p, ch, kind, [t]))
+                    fresh = [t for t in tlist
+                             if (p["id"], t["id"], ch, kind) not in sent_set]
+                    if fresh:
+                        plan.append((p, ch, kind, fresh))
 
         # Digest: newly published matching items, grouped into one message.
         # Cadence per user: 'daily' (24h window, every run) or 'weekly' (7-day
@@ -434,7 +501,10 @@ def main():
                 if not pa:
                     continue
                 try:
-                    if _parse_ts(pa) >= cutoff:
+                    # Still-open only: a backfill of old/closed tenders gets a
+                    # fresh published_at and would otherwise spam the digest.
+                    if _parse_ts(pa) >= cutoff and \
+                       datetime.date.fromisoformat(t["deadline"]) >= today:
                         fresh_all.append(t)
                 except Exception:  # noqa: BLE001
                     continue
