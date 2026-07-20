@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-// Service-role client — SERVER/CI ONLY. Bypasses RLS so the scraper can write
-// pending_review rows on behalf of no logged-in user. The key lives only in
+// Service-role client — SERVER/CI ONLY. Bypasses RLS so the scraper can insert
+// published tender rows on behalf of no logged-in user. The key lives only in
 // CI secrets / local env, never in the web app or the browser.
 // Created lazily so a DRY_RUN (which never writes) works without credentials.
 let client: SupabaseClient | null = null;

@@ -70,9 +70,10 @@ export async function getExistingSourceUrls(): Promise<Set<string>> {
   return urls;
 }
 
-// Insert scraped tenders into the review queue, skipping any whose source_url
-// already exists (dedupe by attribution link — the stable per-notice id).
-// NON-NEGOTIABLE: scrapers only ever write status='pending_review'.
+// Insert scraped tenders, skipping any whose source_url already exists
+// (dedupe by attribution link — the stable per-notice id).
+// Trusted-source scrapes (2merkato) auto-publish (status='published'); the
+// pending_review review queue is for manually admin-entered tenders only.
 export async function saveTenders(rows: TenderInput[]): Promise<SaveResult> {
   if (rows.length === 0) return { inserted: 0, skipped: 0 };
 

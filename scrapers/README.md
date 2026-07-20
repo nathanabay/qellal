@@ -1,8 +1,9 @@
 # Qellal scrapers
 
 Crawlee-based tender scrapers. **Isolated from the Next.js app** (own
-`package.json`, off the Vercel build). Sources write **`pending_review` rows
-only** — nothing is ever published directly.
+`package.json`, off the Vercel build). Trusted sources (2merkato) **auto-publish**
+(`status='published'`) — the source is curated. Only manual admin-entered tenders
+go through the `pending_review` review queue.
 
 ## Design
 
@@ -28,7 +29,7 @@ only** — nothing is ever published directly.
 src/
   lib/types.ts     TenderInput — the normalized row shape
   lib/supabase.ts  service-role client (lazy; env only)
-  lib/upsert.ts    dedupe + insert pending_review
+  lib/upsert.ts    dedupe + insert published rows
   sources/2merkato.ts
   main.ts          CLI: npm run scrape -- <source> [pages]
 ```

@@ -64,7 +64,7 @@
 
 - Public listings browsable **without login**; deadlines visually prominent everywhere
 - Every tender shows **source attribution + link** (legal requirement)
-- Scraped items go to a **review queue** (`status='pending_review'`), never straight to public
+- Trusted-source scrapes (2merkato) **auto-publish** (`status='published'`) — the source is curated; **manually admin-entered** tenders go to the **review queue** (`status='pending_review'`) before going public
 - Mobile-first; pages lightweight (<3s on 3G); test mobile before desktop
 - Users can pause/unsubscribe from notifications in one click
 - The `plan` field on profiles + a single `canAccess()` check is the only payments scaffolding for now

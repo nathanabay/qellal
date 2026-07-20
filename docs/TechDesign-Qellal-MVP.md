@@ -154,7 +154,7 @@ notifications_sent: id, user_id, tender_id, channel, sent_at
 ### Feature 5: Scrapers
 **Complexity:** Medium — and inherently fragile, hence the review queue
 1. One Python script per source; start with the 1–2 highest-volume sources only
-2. Parse title/deadline/entity → insert with `status='pending_review'` via Supabase REST API
+2. Parse title/deadline/entity → insert via Supabase REST API. Trusted sources (2merkato) insert with `status='published'` directly; the `pending_review` review queue is used for manual admin entries. (Original plan routed all scrapes through review; superseded 2026-07-20.)
 3. GitHub Actions runs them every 4–6 hours; failures alert you (email from Actions)
 4. **Legality guardrail:** store source attribution + link on every tender; scrape only public notices; respect robots.txt; confirm Ethiopian legal position during the free period (open question from your PRD)
 - **Test by:** run locally, verify items land in the review queue with correct fields

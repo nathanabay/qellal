@@ -23,6 +23,6 @@
 
 ## Non-Negotiables
 - Secrets in env vars only; service role key never in browser code
-- Scrapers write `pending_review` rows only
+- Trusted-source scrapers (2merkato) auto-publish (`status='published'`); manual admin-entered tenders go to the `pending_review` review queue
 - Never weaken RLS to make a query pass
 - Mobile (375px) tested before desktop
